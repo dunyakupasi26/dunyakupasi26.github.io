@@ -118,6 +118,31 @@
   .fixture-team .tname { font-size: 15px; font-weight: 500; }
   .fixture-vs { font-family: var(--font-display); font-size: 18px; color: var(--muted); letter-spacing: 1px; text-align: center; min-width: 28px; }
   .fixture-meta { text-align: right; font-size: 11px; color: var(--muted); line-height: 1.6; min-width: 90px; }
+  .fixture-rating {
+    font-family: var(--font-display);
+    font-size: 14px;
+    color: var(--gold);
+    background: rgba(245, 200, 66, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin: 0 4px;
+    display: inline-block;
+    line-height: 1;
+  }
+  .fixture-score {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 56px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+  }
+  .fixture-score .vs-text { font-family: var(--font-display); font-size: 16px; color: var(--muted); letter-spacing: 1px; }
+  .fixture-score .score-num { font-family: var(--font-display); font-size: 20px; color: var(--text); line-height: 1; }
+  .fixture-score .score-div { color: var(--muted); font-weight: bold; }
   .compare-header { text-align: center; margin-bottom: 28px; padding: 24px; background: var(--card); border-radius: 14px; border: 1px solid var(--border2); }
   .compare-teams-row { display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 12px; }
   .compare-team-name { font-family: var(--font-display); font-size: 36px; letter-spacing: 3px; color: var(--text); }
@@ -1878,20 +1903,41 @@ function renderFixture(){
   const byDate={};
   sorted.forEach(m=>{ if(!byDate[m.date]) byDate[m.date]=[]; byDate[m.date].push(m); });
   let html='';
+  
   Object.keys(byDate).forEach(date=>{
     html+=`<div class="fixture-group-title" style="font-size:16px;color:var(--text);letter-spacing:1px;margin-top:24px;margin-bottom:10px;">
       <span style="color:var(--green)">●</span> ${date} 2026
     </div>`;
+    
     byDate[date].forEach(match=>{
       const hT=GROUPS.flatMap(g=>g.teams).find(t=>t.name===match.home);
       const aT=GROUPS.flatMap(g=>g.teams).find(t=>t.name===match.away);
       const safeHome=match.home.replace(/'/g,"\\'");
       const safeAway=match.away.replace(/'/g,"\\'");
       const safeVenue=match.venue.replace(/'/g,"\\'");
+      
+      const hAvg = teamAvg(match.home);
+      const aAvg = teamAvg(match.away);
+      const hRatingHtml = hAvg > 0 ? `<span class="fixture-rating">${hAvg.toFixed(1)}</span>` : '';
+      const aRatingHtml = aAvg > 0 ? `<span class="fixture-rating">${aAvg.toFixed(1)}</span>` : '';
+
+      const isPlayed = match.hScore !== undefined && match.aScore !== undefined;
+      const scoreHtml = isPlayed 
+        ? `<span class="score-num">${match.hScore}</span><span class="score-div">-</span><span class="score-num">${match.aScore}</span>` 
+        : `<span class="vs-text">VS</span>`;
+
       html+=`<div class="fixture-match" onclick="openCompare('${safeHome}','${safeAway}','${match.date}','${safeVenue}')">
-        <div class="fixture-team"><span class="flag">${hT?.flag||''}</span><span class="tname">${match.home}</span></div>
-        <div class="fixture-vs">VS</div>
-        <div class="fixture-team right"><span class="flag">${aT?.flag||''}</span><span class="tname">${match.away}</span></div>
+        <div class="fixture-team">
+            <span class="flag">${hT?.flag||''}</span>
+            <span class="tname">${match.home}</span>
+            ${hRatingHtml}
+        </div>
+        <div class="fixture-score">${scoreHtml}</div>
+        <div class="fixture-team right">
+            <span class="flag">${aT?.flag||''}</span>
+            <span class="tname">${match.away}</span>
+            ${aRatingHtml}
+        </div>
         <div class="fixture-meta">Grup ${match.group}<br><span style="font-size:10px">${match.venue.split(',')[0]}</span></div>
       </div>`;
     });
