@@ -8,6 +8,510 @@
   <meta http-equiv="Expires" content="0">
   <title>FIFA World Cup 2026 — İzleme Rehberi</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+<script type="module">
+// ── FIREBASE ──
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, onSnapshot, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCDWdzidhYh48aZWel2aQBZ_UgEn7Scyi8",
+  authDomain: "dunyakupasi26-ac150.firebaseapp.com",
+  projectId: "dunyakupasi26-ac150",
+  storageBucket: "dunyakupasi26-ac150.firebasestorage.app",
+  messagingSenderId: "604633542406",
+  appId: "1:604633542406:web:a32ec91d6a2ea89497b887",
+  measurementId: "G-KL8R0K7KG9"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// Admin email — sadece bu hesap admin panelini görür
+const ADMIN_EMAIL = "admin@dunyakupasi26.com";
+
+// ── AUTH STATE ──
+let currentUser = null;
+let currentUserData = null;
+
+onAuthStateChanged(auth, async (user) => {
+  currentUser = user;
+  if (user) {
+    const snap = await getDoc(doc(db, "users", user.uid));
+    currentUserData = snap.exists() ? snap.data() : null;
+    updateAuthUI(true);
+    if (document.getElementById('sec-fantasy')?.classList.contains('active')) {
+      renderFantasyMain();
+    }
+  } else {
+    currentUserData = null;
+    updateAuthUI(false);
+  }
+});
+
+function updateAuthUI(loggedIn) {
+  const loginArea = document.getElementById('auth-header-area');
+  if (!loginArea) return;
+  if (loggedIn) {
+    const isAdmin = currentUser?.email === ADMIN_EMAIL;
+    loginArea.innerHTML = `
+      <span style="font-size:12px;color:var(--muted)">👤 ${currentUserData?.displayName || currentUser.email}</span>
+      ${isAdmin ? '<span style="font-size:10px;background:rgba(245,200,66,0.15);color:var(--gold);padding:2px 8px;border-radius:10px;border:1px solid rgba(245,200,66,0.3)">ADMİN</span>' : ''}
+      <button onclick="handleSignOut()" style="font-size:12px;background:rgba(255,255,255,0.06);border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;cursor:pointer">Çıkış</button>
+    `;
+  } else {
+    loginArea.innerHTML = `<button onclick="showSection('fantasy')" style="font-size:12px;background:rgba(0,198,122,0.1);border:1px solid var(--border2);color:var(--green);padding:4px 12px;border-radius:6px;cursor:pointer">🏆 Giriş Yap</button>`;
+  }
+}
+
+// ── AUTH FONKSİYONLARI ──
+window.handleRegister = async function() {
+  const name = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass = document.getElementById('reg-pass').value;
+  const pass2 = document.getElementById('reg-pass2').value;
+  const err = document.getElementById('auth-error');
+
+  if (!name || !email || !pass) { err.textContent = 'Tüm alanları doldur.'; return; }
+  if (pass !== pass2) { err.textContent = 'Şifreler eşleşmiyor.'; return; }
+  if (pass.length < 6) { err.textContent = 'Şifre en az 6 karakter olmalı.'; return; }
+
+  try {
+    err.textContent = '';
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    await updateProfile(cred.user, { displayName: name });
+    await setDoc(doc(db, "users", cred.user.uid), {
+      displayName: name,
+      email: email,
+      createdAt: serverTimestamp(),
+      totalPoints: 0
+    });
+    showToast('Kayıt başarılı! Hoş geldin ' + name);
+  } catch(e) {
+    err.textContent = firebaseErrMsg(e.code);
+  }
+};
+
+window.handleLogin = async function() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const err = document.getElementById('auth-error');
+  if (!email || !pass) { err.textContent = 'Email ve şifre gir.'; return; }
+  try {
+    err.textContent = '';
+    await signInWithEmailAndPassword(auth, email, pass);
+    showToast('Giriş başarılı!');
+    renderFantasyMain();
+  } catch(e) {
+    err.textContent = firebaseErrMsg(e.code);
+  }
+};
+
+window.handleSignOut = async function() {
+  await signOut(auth);
+  showToast('Çıkış yapıldı.');
+  showSection('home');
+};
+
+function firebaseErrMsg(code) {
+  const msgs = {
+    'auth/email-already-in-use': 'Bu email zaten kayıtlı.',
+    'auth/invalid-email': 'Geçersiz email adresi.',
+    'auth/weak-password': 'Şifre çok zayıf.',
+    'auth/user-not-found': 'Kullanıcı bulunamadı.',
+    'auth/wrong-password': 'Yanlış şifre.',
+    'auth/invalid-credential': 'Email veya şifre hatalı.',
+    'auth/too-many-requests': 'Çok fazla deneme. Biraz bekle.'
+  };
+  return msgs[code] || 'Bir hata oluştu: ' + code;
+}
+
+// ── FANTASY ANA FONKSİYONLARI ──
+window.renderFantasyMain = async function() {
+  const container = document.getElementById('fantasy-main');
+  if (!container) return;
+
+  if (!currentUser) {
+    renderAuthForms();
+    return;
+  }
+
+  const isAdmin = currentUser.email === ADMIN_EMAIL;
+
+  container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;padding:60px;color:var(--muted)">Yükleniyor…</div>`;
+
+  // Puan tablosunu ve tahminleri paralel çek
+  const [usersSnap, predictionsSnap] = await Promise.all([
+    getDocs(collection(db, "users")),
+    getDocs(collection(db, "predictions"))
+  ]);
+
+  const matchResultsSnap = await getDocs(collection(db, "matchResults"));
+  const matchResults = {};
+  matchResultsSnap.forEach(d => { matchResults[d.id] = d.data(); });
+
+  // Her kullanıcının puanını hesapla
+  const users = {};
+  usersSnap.forEach(d => { users[d.id] = { ...d.data(), uid: d.id, points: 0, predictions: 0, exact: 0 }; });
+
+  const allPredictions = {};
+  predictionsSnap.forEach(d => {
+    const [uid, matchKey] = d.id.split('__');
+    if (!allPredictions[uid]) allPredictions[uid] = {};
+    allPredictions[uid][matchKey] = d.data();
+    if (users[uid]) {
+      users[uid].predictions++;
+      const result = matchResults[matchKey];
+      if (result?.hScore !== undefined) {
+        const pts = calcPoints(d.data().hScore, d.data().aScore, result.hScore, result.aScore);
+        users[uid].points += pts;
+        if (pts === 5) users[uid].exact++;
+      }
+    }
+  });
+
+  const myPredictions = allPredictions[currentUser.uid] || {};
+
+  // Sıralama
+  const sortedUsers = Object.values(users).sort((a,b) => b.points - a.points || b.exact - a.exact);
+
+  // Maçları grupla — tarih sırasına göre (En yakın maç en üstte)
+  const now = new Date();
+  const upcomingMatches = GROUP_STAGE_FIXTURES.filter(m => {
+    const kickoff = matchKickoffDate(m);
+    return kickoff > now;
+  }).sort((a, b) => matchKickoffDate(a) - matchKickoffDate(b)).slice(0, 20);
+
+  const playedMatches = GROUP_STAGE_FIXTURES.filter(m => {
+    const key = matchKey(m);
+    return matchResults[key]?.hScore !== undefined;
+  }).reverse().slice(0, 10);
+
+  let html = '';
+
+  // Admin paneli
+  if (isAdmin) {
+    html += renderAdminPanel(matchResults);
+  }
+
+  // Puan tablosu
+  html += `
+  <div style="background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:20px;margin-bottom:20px;">
+    <div style="font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--gold);margin-bottom:16px;">🏆 PUAN TABLOSU</div>
+    ${sortedUsers.map((u, i) => {
+      const isMe = u.uid === currentUser.uid;
+      const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;margin-bottom:4px;background:${isMe?'rgba(0,198,122,0.08)':'transparent'};border:${isMe?'1px solid rgba(0,198,122,0.2)':'1px solid transparent'}">
+        <div style="font-family:var(--font-display);font-size:20px;color:var(--muted);width:28px;text-align:center">${medal||i+1}</div>
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:500;color:${isMe?'var(--green)':'var(--text)'}">${u.displayName}${isMe?' (sen)':''}</div>
+          <div style="font-size:11px;color:var(--muted)">${u.predictions} tahmin · ${u.exact} tam isabet</div>
+        </div>
+        <div style="font-family:var(--font-display);font-size:24px;color:var(--gold)">${u.points}</div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  // Tahmin yapılacak yaklaşan maçlar
+  html += `
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px;">
+    <div style="font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--green);margin-bottom:4px;">TAHMİNLER</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Maç başlamadan önce tahminini gir. Kilitli maçlar değiştirilemez.</div>
+    ${upcomingMatches.length === 0 ? '<div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center">Yaklaşan maç yok</div>' : ''}
+    ${upcomingMatches.map(m => {
+      const key = matchKey(m);
+      const pred = myPredictions[key];
+      const kickoff = matchKickoffDate(m);
+      const locked = now >= kickoff;
+      const hT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.home);
+      const aT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.away);
+      const timeLeft = !locked ? formatTimeLeft(kickoff - now) : '';
+
+      return `<div style="border:1px solid ${locked?'var(--border)':'var(--border2)'};border-radius:10px;padding:14px 16px;margin-bottom:10px;background:${locked?'rgba(255,255,255,0.02)':'rgba(0,198,122,0.03)'}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-size:11px;color:var(--muted)">Grup ${m.group} · ${m.date} · ${m.venue.split(',')[0]}</div>
+          <div style="font-size:11px;color:${locked?'var(--red)':'var(--green)'}">
+            ${locked ? '🔒 Kilitli' : '⏱ ' + timeLeft}
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="team-flag" style="font-size:20px; font-family:'Twemoji Country Flags', sans-serif;">${hT?.flag||''}</span>
+            <span style="font-size:14px;font-weight:500">${m.home}</span>
+          </div>
+          <span style="font-family:var(--font-display);font-size:16px;color:var(--muted)">VS</span>
+          <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
+            <span style="font-size:14px;font-weight:500">${m.away}</span>
+            <span class="team-flag" style="font-size:20px; font-family:'Twemoji Country Flags', sans-serif;">${aT?.flag||''}</span>
+          </div>
+        </div>
+        ${locked
+          ? pred
+            ? `<div style="text-align:center;font-family:var(--font-display);font-size:20px;color:var(--muted)">Tahminin: ${pred.hScore} — ${pred.aScore}</div>`
+            : `<div style="text-align:center;font-size:12px;color:var(--muted)">Tahmin girilmedi</div>`
+          : `<div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+              <input id="h_${key}" type="number" min="0" max="20" value="${pred?.hScore??''}" placeholder="0"
+                style="width:52px;height:40px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-display);font-size:22px;text-align:center;outline:none">
+              <span style="font-family:var(--font-display);font-size:18px;color:var(--muted)">—</span>
+              <input id="a_${key}" type="number" min="0" max="20" value="${pred?.aScore??''}" placeholder="0"
+                style="width:52px;height:40px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-display);font-size:22px;text-align:center;outline:none">
+              <button onclick="savePrediction('${key}')"
+                style="background:rgba(0,198,122,0.15);border:1px solid var(--border2);color:var(--green);font-size:13px;padding:8px 18px;border-radius:8px;cursor:pointer;font-family:var(--font-body);font-weight:500">
+                ${pred ? 'Güncelle' : 'Kaydet'}
+              </button>
+            </div>`
+        }
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  // Geçmiş maçlar ve tahmin sonuçları
+  if (playedMatches.length > 0) {
+    html += `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px;">
+      <div style="font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--text);margin-bottom:16px;">GEÇMİŞ MAÇLAR</div>
+      ${playedMatches.map(m => {
+        const key = matchKey(m);
+        const result = matchResults[key];
+        const pred = myPredictions[key];
+        const pts = pred && result ? calcPoints(pred.hScore, pred.aScore, result.hScore, result.aScore) : null;
+        const hT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.home);
+        const aT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.away);
+        return `<div style="border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:8px;display:grid;grid-template-columns:1fr auto 1fr auto;align-items:center;gap:12px;">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="team-flag" style="font-family:'Twemoji Country Flags', sans-serif;">${hT?.flag||''}</span><span style="font-size:13px">${m.home}</span>
+          </div>
+          <div style="text-align:center">...</div>
+          <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+            <span style="font-size:13px">${m.away}</span><span class="team-flag" style="font-family:'Twemoji Country Flags', sans-serif;">${aT?.flag||''}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+            <span style="font-size:13px">${m.away}</span><span>${aT?.flag||''}</span>
+          </div>
+          <div style="text-align:center;min-width:48px">
+            ${pts !== null ? `<div style="font-family:var(--font-display);font-size:22px;color:${pts>=4?'var(--green)':pts>=3?'var(--gold)':pts>=2?'var(--muted)':'#666'}">${pts}</div><div style="font-size:9px;color:var(--muted)">PUAN</div>` : '<div style="font-size:11px;color:var(--muted)">—</div>'}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  container.innerHTML = html;
+
+  // Admin listener
+  if (isAdmin) initAdminListeners(matchResults);
+};
+
+// ── PUAN HESAPLAMA ──
+function calcPoints(pH, pA, rH, rA) {
+  pH = parseInt(pH); pA = parseInt(pA);
+  rH = parseInt(rH); rA = parseInt(rA);
+  if (isNaN(pH)||isNaN(pA)||isNaN(rH)||isNaN(rA)) return 0;
+
+  // Tam skor
+  if (pH === rH && pA === rA) return 5;
+
+  const predResult = pH > pA ? 'H' : pH < pA ? 'A' : 'D';
+  const realResult = rH > rA ? 'H' : rH < rA ? 'A' : 'D';
+  const sameWinner = predResult === realResult;
+  const scoreDiff = Math.abs((pH - pA) - (rH - rA)); // gol farkı farkı
+  const goalDiff = Math.abs(pH - rH) + Math.abs(pA - rA); // toplam gol farkı
+
+  // 1 golle kaçırdı, kazanan aynı (3-1 dedim 2-1 oldu veya 2-1 dedim 3-1 oldu)
+  if (sameWinner && goalDiff === 1) return 4;
+
+  // Doğru sonuç (kazanan/beraberlik tuttu)
+  if (sameWinner) return 3;
+
+  // 1 golle kaçırdı ama kazanan değişti (2-1 dedim 2-2 oldu)
+  if (!sameWinner && goalDiff === 1) return 2;
+
+  return 0;
+}
+
+// ── TAHMİN KAYDETME ──
+window.savePrediction = async function(key) {
+  if (!currentUser) return;
+  const hInput = document.getElementById('h_' + key);
+  const aInput = document.getElementById('a_' + key);
+  if (!hInput || !aInput) return;
+  const hScore = parseInt(hInput.value);
+  const aScore = parseInt(aInput.value);
+  if (isNaN(hScore) || isNaN(aScore) || hScore < 0 || aScore < 0) {
+    showToast('Geçerli bir skor gir!'); return;
+  }
+
+  // Kilit kontrolü
+  const match = GROUP_STAGE_FIXTURES.find(m => matchKey(m) === key);
+  if (!match) return;
+  const kickoff = matchKickoffDate(match);
+  if (new Date() >= kickoff) { showToast('Bu maç kilitlendi!'); return; }
+
+  try {
+    const docId = currentUser.uid + '__' + key;
+    await setDoc(doc(db, "predictions", docId), {
+      uid: currentUser.uid,
+      matchKey: key,
+      hScore, aScore,
+      updatedAt: serverTimestamp()
+    });
+    showToast('Tahmin kaydedildi! ✓');
+    renderFantasyMain();
+  } catch(e) {
+    showToast('Hata: ' + e.message);
+  }
+};
+
+// ── ADMİN PANELİ ──
+function renderAdminPanel(matchResults) {
+  const recent = GROUP_STAGE_FIXTURES.slice(0, 30);
+  return `
+  <div style="background:rgba(245,200,66,0.05);border:1px solid rgba(245,200,66,0.25);border-radius:14px;padding:20px;margin-bottom:20px;">
+    <div style="font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--gold);margin-bottom:4px;">⚙️ ADMİN PANELİ</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Maç sonuçlarını gir. Girilen sonuçlara göre puanlar otomatik hesaplanır.</div>
+    <div id="admin-matches">
+    ${recent.map(m => {
+      const key = matchKey(m);
+      const result = matchResults[key];
+      const hT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.home);
+      const aT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.away);
+      return `<div style="display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:13px">${hT?.flag||''} ${m.home} vs ${m.away} ${aT?.flag||''} <span style="color:var(--muted);font-size:11px">· ${m.date}</span></div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <input id="adm_h_${key}" type="number" min="0" max="20" value="${result?.hScore??''}" placeholder="—"
+            style="width:44px;height:34px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-display);font-size:18px;text-align:center;outline:none">
+          <span style="color:var(--muted)">-</span>
+          <input id="adm_a_${key}" type="number" min="0" max="20" value="${result?.aScore??''}" placeholder="—"
+            style="width:44px;height:34px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-display);font-size:18px;text-align:center;outline:none">
+        </div>
+        <button onclick="saveResult('${key}')"
+          style="background:rgba(245,200,66,0.1);border:1px solid rgba(245,200,66,0.3);color:var(--gold);font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;white-space:nowrap">
+          ${result?.hScore !== undefined ? '✓ Güncelle' : 'Kaydet'}
+        </button>
+      </div>`;
+    }).join('')}
+    </div>
+  </div>`;
+}
+
+function initAdminListeners(matchResults) {
+  // Listener gerektirmiyor, butonlarla çalışıyor
+}
+
+window.saveResult = async function(key) {
+  if (!currentUser || currentUser.email !== ADMIN_EMAIL) return;
+  const hInput = document.getElementById('adm_h_' + key);
+  const aInput = document.getElementById('adm_a_' + key);
+  if (!hInput || !aInput) return;
+  const hScore = parseInt(hInput.value);
+  const aScore = parseInt(aInput.value);
+  if (isNaN(hScore) || isNaN(aScore)) { showToast('Geçerli skor gir!'); return; }
+  try {
+    await setDoc(doc(db, "matchResults", key), { hScore, aScore, updatedAt: serverTimestamp() });
+    showToast('Sonuç kaydedildi! ✓');
+    renderFantasyMain();
+  } catch(e) {
+    showToast('Hata: ' + e.message);
+  }
+};
+
+// ── YARDIMCI FONKSİYONLAR ──
+function matchKey(m) {
+  return m.group + '_' + m.date.replace(/ /g,'') + '_' + m.home.replace(/ /g,'_') + '_' + m.away.replace(/ /g,'_');
+}
+window.matchKey = matchKey;
+
+function matchKickoffDate(m) {
+  if (m.datetime) return new Date(m.datetime);
+  const monthMap = {'Haz': 5, 'Tem': 6}; // JS ay indeksi (0-based)
+  const parts = m.date.split(' ');
+  const day = parseInt(parts[0]);
+  const month = monthMap[parts[1]] ?? 5;
+  const hour = m.kickoffHour ?? 20;
+  return new Date(Date.UTC(2026, month, day, hour, 0, 0));
+}
+
+function formatTimeLeft(ms) {
+  if (ms <= 0) return 'Başladı';
+  const h = Math.floor(ms / 3600000);
+  const d = Math.floor(h / 24);
+  if (d > 1) return d + ' gün kaldı';
+  if (h > 0) return h + ' saat kaldı';
+  const min = Math.floor(ms / 60000);
+  return min + ' dakika kaldı';
+}
+
+// ── AUTH FORMLARI ──
+function renderAuthForms() {
+  const container = document.getElementById('fantasy-main');
+  container.innerHTML = `
+  <div style="max-width:420px;margin:0 auto;">
+    <div style="display:flex;gap:8px;margin-bottom:20px;">
+      <button id="tab-login" onclick="switchAuthTab('login')"
+        style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border2);background:rgba(0,198,122,0.1);color:var(--green);font-family:var(--font-body);font-size:14px;cursor:pointer;font-weight:500">
+        Giriş Yap
+      </button>
+      <button id="tab-register" onclick="switchAuthTab('register')"
+        style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:var(--font-body);font-size:14px;cursor:pointer">
+        Kayıt Ol
+      </button>
+    </div>
+
+    <div id="form-login" style="background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:28px;">
+      <div style="font-family:var(--font-display);font-size:24px;letter-spacing:2px;color:var(--green);margin-bottom:20px;">GİRİŞ YAP</div>
+      <input id="login-email" type="email" placeholder="Email" style="${inputStyle()}">
+      <input id="login-pass" type="password" placeholder="Şifre" style="${inputStyle()}" onkeydown="if(event.key==='Enter')handleLogin()">
+      <div id="auth-error" style="color:var(--red);font-size:12px;min-height:18px;margin-bottom:8px"></div>
+      <button onclick="handleLogin()" style="${btnStyle()}">Giriş Yap →</button>
+    </div>
+
+    <div id="form-register" style="display:none;background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:28px;">
+      <div style="font-family:var(--font-display);font-size:24px;letter-spacing:2px;color:var(--green);margin-bottom:20px;">KAYIT OL</div>
+      <input id="reg-name" type="text" placeholder="Görünen isim (ör: Ahmet)" style="${inputStyle()}">
+      <input id="reg-email" type="email" placeholder="Email" style="${inputStyle()}">
+      <input id="reg-pass" type="password" placeholder="Şifre (min 6 karakter)" style="${inputStyle()}">
+      <input id="reg-pass2" type="password" placeholder="Şifre tekrar" style="${inputStyle()}" onkeydown="if(event.key==='Enter')handleRegister()">
+      <div id="auth-error" style="color:var(--red);font-size:12px;min-height:18px;margin-bottom:8px"></div>
+      <button onclick="handleRegister()" style="${btnStyle()}">Kayıt Ol →</button>
+    </div>
+  </div>`;
+}
+
+window.switchAuthTab = function(tab) {
+  const loginForm = document.getElementById('form-login');
+  const regForm = document.getElementById('form-register');
+  const loginTab = document.getElementById('tab-login');
+  const regTab = document.getElementById('tab-register');
+  if (tab === 'login') {
+    loginForm.style.display = 'block'; regForm.style.display = 'none';
+    loginTab.style.background = 'rgba(0,198,122,0.1)'; loginTab.style.color = 'var(--green)'; loginTab.style.borderColor = 'var(--border2)';
+    regTab.style.background = 'transparent'; regTab.style.color = 'var(--muted)'; regTab.style.borderColor = 'var(--border)';
+  } else {
+    loginForm.style.display = 'none'; regForm.style.display = 'block';
+    regTab.style.background = 'rgba(0,198,122,0.1)'; regTab.style.color = 'var(--green)'; regTab.style.borderColor = 'var(--border2)';
+    loginTab.style.background = 'transparent'; loginTab.style.color = 'var(--muted)'; loginTab.style.borderColor = 'var(--border)';
+  }
+};
+
+function inputStyle() {
+  return 'width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font-body);font-size:14px;padding:10px 14px;outline:none;margin-bottom:10px;display:block;box-sizing:border-box';
+}
+function btnStyle() {
+  return 'width:100%;background:rgba(0,198,122,0.15);border:1px solid var(--border2);color:var(--green);font-family:var(--font-body);font-size:15px;font-weight:500;padding:12px;border-radius:8px;cursor:pointer;margin-top:4px';
+}
+
+// showSection override — fantasy sekmesi açılınca render tetikle
+const _origShowSection = window.showSection;
+window.showSection = function(id) {
+  _origShowSection(id);
+  if (id === 'fantasy') {
+    if (currentUser) renderFantasyMain();
+    else renderAuthForms();
+  }
+};
+
+</script>
 <style>
 
   @font-face {
@@ -238,8 +742,12 @@
       <button class="nav-btn active" onclick="showSection('home')">Ana Sayfa</button>
       <button class="nav-btn" onclick="showSection('groups')">Gruplar</button>
       <button class="nav-btn" onclick="showSection('fixture')">Fikstür</button>
+      <button class="nav-btn" onclick="showSection('fantasy')" style="color:var(--gold)">🏆 Fantasy</button>
     </nav>
-    <div class="header-badge">🇺🇸 🇨🇦 🇲🇽 11 Haz — 19 Tem 2026</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div id="auth-header-area"></div>
+      <div class="header-badge">🇺🇸 🇨🇦 🇲🇽 11 Haz — 19 Tem 2026</div>
+    </div>
   </div>
 </header>
 <main>
@@ -313,6 +821,13 @@
       <div class="sec-title" id="compare-title">MAÇ</div>
     </div>
     <div id="compare-content"></div>
+  </div>
+
+  <div id="sec-fantasy" class="section">
+    <div class="sec-header">
+      <div class="sec-title" style="color:var(--gold)">🏆 FANTASY</div>
+    </div>
+    <div id="fantasy-main"></div>
   </div>
 </main>
 <script>
@@ -1786,7 +2301,7 @@ function showSection(id){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.getElementById('sec-'+id).classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  const map={'home':'Ana Sayfa','groups':'Gruplar','fixture':'Fikstür','team':'Gruplar','compare':'Fikstür'};
+  const map={'home':'Ana Sayfa','groups':'Gruplar','fixture':'Fikstür','team':'Gruplar','compare':'Fikstür','fantasy':'🏆 Fantasy'};
   document.querySelectorAll('.nav-btn').forEach(b=>{ if(b.textContent===map[id]) b.classList.add('active'); });
   if(id==='home') renderHomeLB();
   window.scrollTo(0,0);
