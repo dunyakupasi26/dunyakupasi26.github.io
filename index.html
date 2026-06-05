@@ -9,7 +9,6 @@
   <title>FIFA World Cup 2026 — İzleme Rehberi</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
 <script type="module">
-// ── FIREBASE ──
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, getDocs, collection, onSnapshot, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -28,10 +27,8 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Admin email — sadece bu hesap admin panelini görür
 const ADMIN_EMAIL = "admin@dunyakupasi26.com";
 
-// ── AUTH STATE ──
 let currentUser = null;
 let currentUserData = null;
 
@@ -65,7 +62,6 @@ function updateAuthUI(loggedIn) {
   }
 }
 
-// ── AUTH FONKSİYONLARI ──
 window.handleRegister = async function() {
   const name = document.getElementById('reg-name').value.trim();
   const email = document.getElementById('reg-email').value.trim();
@@ -127,7 +123,6 @@ function firebaseErrMsg(code) {
   return msgs[code] || 'Bir hata oluştu: ' + code;
 }
 
-// ── FANTASY ANA FONKSİYONLARI ──
 window.renderFantasyMain = async function() {
   const container = document.getElementById('fantasy-main');
   if (!container) return;
@@ -141,7 +136,6 @@ window.renderFantasyMain = async function() {
 
   container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;padding:60px;color:var(--muted)">Yükleniyor…</div>`;
 
-  // Puan tablosunu ve tahminleri paralel çek
   const [usersSnap, predictionsSnap] = await Promise.all([
     getDocs(collection(db, "users")),
     getDocs(collection(db, "predictions"))
@@ -151,7 +145,6 @@ window.renderFantasyMain = async function() {
   const matchResults = {};
   matchResultsSnap.forEach(d => { matchResults[d.id] = d.data(); });
 
-  // Her kullanıcının puanını hesapla
   const users = {};
   usersSnap.forEach(d => { users[d.id] = { ...d.data(), uid: d.id, points: 0, predictions: 0, exact: 0 }; });
 
@@ -173,15 +166,12 @@ window.renderFantasyMain = async function() {
 
   const myPredictions = allPredictions[currentUser.uid] || {};
 
-  // Sıralama
   const sortedUsers = Object.values(users).sort((a,b) => b.points - a.points || b.exact - a.exact);
 
-  // Maçları grupla — tarih sırasına göre (En yakın maç en üstte)
   const now = new Date();
   const upcomingMatches = GROUP_STAGE_FIXTURES.filter(m => {
-    const kickoff = matchKickoffDate(m);
-    return kickoff > now;
-  }).sort((a, b) => matchKickoffDate(a) - matchKickoffDate(b)).slice(0, 20);
+   return new Date(m.datetime) > now;
+  }).sort((a, b) => new Date(a.datetime) - new Date(b.datetime)).slice(0, 20);
 
   const playedMatches = GROUP_STAGE_FIXTURES.filter(m => {
     const key = matchKey(m);
@@ -190,12 +180,10 @@ window.renderFantasyMain = async function() {
 
   let html = '';
 
-  // Admin paneli
   if (isAdmin) {
     html += renderAdminPanel(matchResults);
   }
 
-  // Puan tablosu
   html += `
   <div style="background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:20px;margin-bottom:20px;">
     <div style="font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--gold);margin-bottom:16px;">🏆 PUAN TABLOSU</div>
@@ -213,7 +201,6 @@ window.renderFantasyMain = async function() {
     }).join('')}
   </div>`;
 
-  // Tahmin yapılacak yaklaşan maçlar
   html += `
   <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px;">
     <div style="font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--green);margin-bottom:4px;">TAHMİNLER</div>
@@ -226,11 +213,13 @@ window.renderFantasyMain = async function() {
       const locked = now >= kickoff;
       const hT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.home);
       const aT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.away);
-      const timeLeft = !locked ? formatTimeLeft(kickoff - now) : '';
+      const timeLeft = !locked ? window.formatTimeLeft(kickoff - now) : '';
 
       return `<div style="border:1px solid ${locked?'var(--border)':'var(--border2)'};border-radius:10px;padding:14px 16px;margin-bottom:10px;background:${locked?'rgba(255,255,255,0.02)':'rgba(0,198,122,0.03)'}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div style="font-size:11px;color:var(--muted)">Grup ${m.group} · ${m.date} · ${m.venue.split(',')[0]}</div>
+          <div style="font-size:11px;color:var(--muted)">
+  Grup ${m.group} · ${window.formatDateTime(m.datetime)} · ${m.venue.split(',')[0]}
+</div>
           <div style="font-size:11px;color:${locked?'var(--red)':'var(--green)'}">
             ${locked ? '🔒 Kilitli' : '⏱ ' + timeLeft}
           </div>
@@ -250,23 +239,25 @@ window.renderFantasyMain = async function() {
           ? pred
             ? `<div style="text-align:center;font-family:var(--font-display);font-size:20px;color:var(--muted)">Tahminin: ${pred.hScore} — ${pred.aScore}</div>`
             : `<div style="text-align:center;font-size:12px;color:var(--muted)">Tahmin girilmedi</div>`
-          : `<div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+          : `<div style="display:grid;grid-template-columns:1fr auto auto auto 1fr;align-items:center;justify-items:center;gap:8px;">
+              <div></div>
               <input id="h_${key}" type="number" min="0" max="20" value="${pred?.hScore??''}" placeholder="0"
-                style="width:52px;height:40px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-display);font-size:22px;text-align:center;outline:none">
-              <span style="font-family:var(--font-display);font-size:18px;color:var(--muted)">—</span>
+                style="width:56px;height:44px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-display);font-size:24px;text-align:center;outline:none">
+              <span style="font-family:var(--font-display);font-size:20px;color:var(--muted);padding:0 4px">—</span>
               <input id="a_${key}" type="number" min="0" max="20" value="${pred?.aScore??''}" placeholder="0"
-                style="width:52px;height:40px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-display);font-size:22px;text-align:center;outline:none">
-              <button onclick="savePrediction('${key}')"
-                style="background:rgba(0,198,122,0.15);border:1px solid var(--border2);color:var(--green);font-size:13px;padding:8px 18px;border-radius:8px;cursor:pointer;font-family:var(--font-body);font-weight:500">
-                ${pred ? 'Güncelle' : 'Kaydet'}
-              </button>
+                style="width:56px;height:44px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-display);font-size:24px;text-align:center;outline:none">
+              <div style="display:flex;justify-content:flex-start;">
+                <button onclick="savePrediction('${key}')"
+                  style="background:rgba(0,198,122,0.15);border:1px solid var(--border2);color:var(--green);font-size:13px;padding:8px 18px;border-radius:8px;cursor:pointer;font-family:var(--font-body);font-weight:500;white-space:nowrap">
+                  ${pred ? 'Güncelle' : 'Kaydet'}
+                </button>
+              </div>
             </div>`
         }
       </div>`;
     }).join('')}
   </div>`;
 
-  // Geçmiş maçlar ve tahmin sonuçları
   if (playedMatches.length > 0) {
     html += `
     <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px;">
@@ -299,38 +290,31 @@ window.renderFantasyMain = async function() {
 
   container.innerHTML = html;
 
-  // Admin listener
   if (isAdmin) initAdminListeners(matchResults);
 };
 
-// ── PUAN HESAPLAMA ──
 function calcPoints(pH, pA, rH, rA) {
   pH = parseInt(pH); pA = parseInt(pA);
   rH = parseInt(rH); rA = parseInt(rA);
   if (isNaN(pH)||isNaN(pA)||isNaN(rH)||isNaN(rA)) return 0;
 
-  // Tam skor
   if (pH === rH && pA === rA) return 5;
 
   const predResult = pH > pA ? 'H' : pH < pA ? 'A' : 'D';
   const realResult = rH > rA ? 'H' : rH < rA ? 'A' : 'D';
   const sameWinner = predResult === realResult;
-  const scoreDiff = Math.abs((pH - pA) - (rH - rA)); // gol farkı farkı
-  const goalDiff = Math.abs(pH - rH) + Math.abs(pA - rA); // toplam gol farkı
+  const scoreDiff = Math.abs((pH - pA) - (rH - rA));
+  const goalDiff = Math.abs(pH - rH) + Math.abs(pA - rA);
 
-  // 1 golle kaçırdı, kazanan aynı (3-1 dedim 2-1 oldu veya 2-1 dedim 3-1 oldu)
   if (sameWinner && goalDiff === 1) return 4;
 
-  // Doğru sonuç (kazanan/beraberlik tuttu)
   if (sameWinner) return 3;
 
-  // 1 golle kaçırdı ama kazanan değişti (2-1 dedim 2-2 oldu)
   if (!sameWinner && goalDiff === 1) return 2;
 
   return 0;
 }
 
-// ── TAHMİN KAYDETME ──
 window.savePrediction = async function(key) {
   if (!currentUser) return;
   const hInput = document.getElementById('h_' + key);
@@ -342,7 +326,6 @@ window.savePrediction = async function(key) {
     showToast('Geçerli bir skor gir!'); return;
   }
 
-  // Kilit kontrolü
   const match = GROUP_STAGE_FIXTURES.find(m => matchKey(m) === key);
   if (!match) return;
   const kickoff = matchKickoffDate(match);
@@ -363,7 +346,6 @@ window.savePrediction = async function(key) {
   }
 };
 
-// ── ADMİN PANELİ ──
 function renderAdminPanel(matchResults) {
   const recent = GROUP_STAGE_FIXTURES.slice(0, 30);
   return `
@@ -396,7 +378,6 @@ function renderAdminPanel(matchResults) {
 }
 
 function initAdminListeners(matchResults) {
-  // Listener gerektirmiyor, butonlarla çalışıyor
 }
 
 window.saveResult = async function(key) {
@@ -416,33 +397,17 @@ window.saveResult = async function(key) {
   }
 };
 
-// ── YARDIMCI FONKSİYONLAR ──
 function matchKey(m) {
   return m.group + '_' + m.date.replace(/ /g,'') + '_' + m.home.replace(/ /g,'_') + '_' + m.away.replace(/ /g,'_');
 }
 window.matchKey = matchKey;
 
 function matchKickoffDate(m) {
-  if (m.datetime) return new Date(m.datetime);
-  const monthMap = {'Haz': 5, 'Tem': 6}; // JS ay indeksi (0-based)
-  const parts = m.date.split(' ');
-  const day = parseInt(parts[0]);
-  const month = monthMap[parts[1]] ?? 5;
-  const hour = m.kickoffHour ?? 20;
-  return new Date(Date.UTC(2026, month, day, hour, 0, 0));
+  return new Date(m.datetime);
 }
 
-function formatTimeLeft(ms) {
-  if (ms <= 0) return 'Başladı';
-  const h = Math.floor(ms / 3600000);
-  const d = Math.floor(h / 24);
-  if (d > 1) return d + ' gün kaldı';
-  if (h > 0) return h + ' saat kaldı';
-  const min = Math.floor(ms / 60000);
-  return min + ' dakika kaldı';
-}
 
-// ── AUTH FORMLARI ──
+
 function renderAuthForms() {
   const container = document.getElementById('fantasy-main');
   container.innerHTML = `
@@ -501,7 +466,6 @@ function btnStyle() {
   return 'width:100%;background:rgba(0,198,122,0.15);border:1px solid var(--border2);color:var(--green);font-family:var(--font-body);font-size:15px;font-weight:500;padding:12px;border-radius:8px;cursor:pointer;margin-top:4px';
 }
 
-// showSection override — fantasy sekmesi açılınca render tetikle
 const _origShowSection = window.showSection;
 window.showSection = function(id) {
   _origShowSection(id);
@@ -2206,80 +2170,79 @@ const GROUPS = [
   ]},
 ];
 const GROUP_STAGE_FIXTURES = [
-  {group:'A',date:'11 Haz',home:'Meksika',      away:'Güney Afrika', venue:'Estadio Azteca, MXC'},
-  {group:'A',date:'11 Haz',home:'Güney Kore',   away:'Çekya',        venue:'Estadio Akron, GDL'},
-  {group:'A',date:'18 Haz',home:'Çekya',        away:'Güney Afrika', venue:'Mercedes-Benz Stadium, ATL'},
-  {group:'A',date:'18 Haz',home:'Meksika',      away:'Güney Kore',   venue:'Estadio Akron, GDL'},
-  {group:'A',date:'24 Haz',home:'Çekya',        away:'Meksika',      venue:'Estadio Azteca, MXC'},
-  {group:'A',date:'24 Haz',home:'Güney Afrika', away:'Güney Kore',   venue:'Arrowhead Stadium, KC'},
-  {group:'B',date:'12 Haz',home:'Kanada',       away:'Bosna-Hersek', venue:'BMO Field, TOR'},
-  {group:'B',date:'12 Haz',home:'Katar',        away:'İsviçre',      venue:'BC Place, VAN'},
-  {group:'B',date:'19 Haz',home:'Bosna-Hersek', away:'Katar',        venue:'AT&T Stadium, DAL'},
-  {group:'B',date:'19 Haz',home:'İsviçre',      away:'Kanada',       venue:'AT&T Stadium, DAL'},
-  {group:'B',date:'25 Haz',home:'İsviçre',      away:'Bosna-Hersek', venue:"Levi's Stadium, SFO"},
-  {group:'B',date:'25 Haz',home:'Katar',        away:'Kanada',       venue:'BMO Field, TOR'},
-  {group:'C',date:'12 Haz',home:'Brezilya',     away:'Fas',          venue:'MetLife Stadium, NJ'},
-  {group:'C',date:'12 Haz',home:'Haiti',        away:'İskoçya',      venue:'Gillette Stadium, BOS'},
-  {group:'C',date:'19 Haz',home:'Brezilya',     away:'Haiti',        venue:'SoFi Stadium, LA'},
-  {group:'C',date:'19 Haz',home:'İskoçya',      away:'Fas',          venue:'Gillette Stadium, BOS'},
-  {group:'C',date:'25 Haz',home:'Brezilya',     away:'İskoçya',      venue:'MetLife Stadium, NJ'},
-  {group:'C',date:'25 Haz',home:'Fas',          away:'Haiti',        venue:'Hard Rock Stadium, MIA'},
-  {group:'D',date:'12 Haz',home:'ABD',          away:'Paraguay',     venue:'SoFi Stadium, LA'},
-  {group:'D',date:'12 Haz',home:'Avustralya',   away:'Türkiye',      venue:'BC Place, VAN'},
-  {group:'D',date:'19 Haz',home:'ABD',          away:'Avustralya',   venue:'SoFi Stadium, LA'},
-  {group:'D',date:'19 Haz',home:'Türkiye',      away:'Paraguay',     venue:'AT&T Stadium, DAL'},
-  {group:'D',date:'25 Haz',home:'Türkiye',      away:'ABD',          venue:'SoFi Stadium, LA'},
-  {group:'D',date:'25 Haz',home:'Paraguay',     away:'Avustralya',   venue:'Arrowhead Stadium, KC'},
-  {group:'E',date:'13 Haz',home:'Almanya',      away:'Curaçao',      venue:'MetLife Stadium, NJ'},
-  {group:'E',date:'13 Haz',home:'Fildişi Sahili',away:'Ekvador',    venue:'Hard Rock Stadium, MIA'},
-  {group:'E',date:'20 Haz',home:'Almanya',      away:'Fildişi Sahili',venue:'Mercedes-Benz Stadium, ATL'},
-  {group:'E',date:'20 Haz',home:'Ekvador',      away:'Curaçao',      venue:"Levi's Stadium, SFO"},
-  {group:'E',date:'26 Haz',home:'Almanya',      away:'Ekvador',      venue:'MetLife Stadium, NJ'},
-  {group:'E',date:'26 Haz',home:'Curaçao',      away:'Fildişi Sahili',venue:'Hard Rock Stadium, MIA'},
-  {group:'F',date:'13 Haz',home:'Hollanda',     away:'Japonya',      venue:"Levi's Stadium, SFO"},
-  {group:'F',date:'13 Haz',home:'İsveç',        away:'Tunus',        venue:'Arrowhead Stadium, KC'},
-  {group:'F',date:'20 Haz',home:'Hollanda',     away:'İsveç',        venue:'AT&T Stadium, DAL'},
-  {group:'F',date:'20 Haz',home:'Tunus',        away:'Japonya',      venue:'Estadio BBVA, MTY'},
-  {group:'F',date:'26 Haz',home:'Hollanda',     away:'Tunus',        venue:"Levi's Stadium, SFO"},
-  {group:'F',date:'26 Haz',home:'Japonya',      away:'İsveç',        venue:'BC Place, VAN'},
-  {group:'G',date:'14 Haz',home:'Belçika',      away:'Mısır',        venue:'Lumen Field, SEA'},
-  {group:'G',date:'14 Haz',home:'İran',         away:'Yeni Zelanda', venue:'Estadio Akron, GDL'},
-  {group:'G',date:'21 Haz',home:'Belçika',      away:'İran',         venue:'SoFi Stadium, LA'},
-  {group:'G',date:'21 Haz',home:'Yeni Zelanda', away:'Mısır',        venue:'Mercedes-Benz Stadium, ATL'},
-  {group:'G',date:'27 Haz',home:'Belçika',      away:'Yeni Zelanda', venue:'Lumen Field, SEA'},
-  {group:'G',date:'27 Haz',home:'Mısır',        away:'İran',         venue:'Estadio Azteca, MXC'},
-  {group:'H',date:'14 Haz',home:'İspanya',      away:'Yeşil Burun',  venue:'MetLife Stadium, NJ'},
-  {group:'H',date:'14 Haz',home:'Suudi Arabistan',away:'Uruguay',    venue:'Hard Rock Stadium, MIA'},
-  {group:'H',date:'21 Haz',home:'İspanya',      away:'Suudi Arabistan',venue:'SoFi Stadium, LA'},
-  {group:'H',date:'21 Haz',home:'Uruguay',      away:'Yeşil Burun',  venue:"Levi's Stadium, SFO"},
-  {group:'H',date:'27 Haz',home:'İspanya',      away:'Uruguay',      venue:'MetLife Stadium, NJ'},
-  {group:'H',date:'27 Haz',home:'Yeşil Burun',  away:'Suudi Arabistan',venue:'AT&T Stadium, DAL'},
-  {group:'I',date:'15 Haz',home:'Fransa',       away:'Senegal',      venue:'AT&T Stadium, DAL'},
-  {group:'I',date:'15 Haz',home:'Irak',         away:'Norveç',       venue:'Arrowhead Stadium, KC'},
-  {group:'I',date:'22 Haz',home:'Fransa',       away:'Irak',         venue:'MetLife Stadium, NJ'},
-  {group:'I',date:'22 Haz',home:'Norveç',       away:'Senegal',      venue:'Lumen Field, SEA'},
-  {group:'I',date:'28 Haz',home:'Fransa',       away:'Norveç',       venue:'AT&T Stadium, DAL'},
-  {group:'I',date:'28 Haz',home:'Senegal',      away:'Irak',         venue:'Mercedes-Benz Stadium, ATL'},
-  {group:'J',date:'15 Haz',home:'Arjantin',     away:'Cezayir',      venue:'SoFi Stadium, LA'},
-  {group:'J',date:'15 Haz',home:'Avusturya',    away:'Ürdün',        venue:'BC Place, VAN'},
-  {group:'J',date:'22 Haz',home:'Arjantin',     away:'Avusturya',    venue:'MetLife Stadium, NJ'},
-  {group:'J',date:'22 Haz',home:'Ürdün',        away:'Cezayir',      venue:'Estadio Azteca, MXC'},
-  {group:'J',date:'28 Haz',home:'Arjantin',     away:'Ürdün',        venue:'Hard Rock Stadium, MIA'},
-  {group:'J',date:'28 Haz',home:'Cezayir',      away:'Avusturya',    venue:'Gillette Stadium, BOS'},
-  {group:'K',date:'16 Haz',home:'Portekiz',     away:'Kongo',        venue:'MetLife Stadium, NJ'},
-  {group:'K',date:'16 Haz',home:'Özbekistan',   away:'Kolombiya',    venue:'Lumen Field, SEA'},
-  {group:'K',date:'23 Haz',home:'Portekiz',     away:'Özbekistan',   venue:'SoFi Stadium, LA'},
-  {group:'K',date:'23 Haz',home:'Kolombiya',    away:'Kongo',        venue:'Arrowhead Stadium, KC'},
-  {group:'K',date:'27 Haz',home:'Kongo',        away:'Özbekistan',   venue:'Mercedes-Benz Stadium, ATL'},
-  {group:'K',date:'28 Haz',home:'Portekiz',     away:'Kolombiya',    venue:'MetLife Stadium, NJ'},
-  {group:'L',date:'16 Haz',home:'İngiltere',    away:'Hırvatistan',  venue:"Levi's Stadium, SFO"},
-  {group:'L',date:'16 Haz',home:'Gana',         away:'Panama',       venue:'Arrowhead Stadium, KC'},
-  {group:'L',date:'23 Haz',home:'İngiltere',    away:'Gana',         venue:'MetLife Stadium, NJ'},
-  {group:'L',date:'23 Haz',home:'Panama',       away:'Hırvatistan',  venue:'Hard Rock Stadium, MIA'},
-  {group:'L',date:'29 Haz',home:'İngiltere',    away:'Panama',       venue:'MetLife Stadium, NJ'},
-  {group:'L',date:'29 Haz',home:'Hırvatistan',  away:'Gana',         venue:'Mercedes-Benz Stadium, ATL'},
+  {group:'A',date:'11 Haz',home:'Meksika',      away:'Güney Afrika', venue:'Estadio Azteca, MXC', datetime:'2026-06-11T22:00:00'},
+  {group:'A',date:'12 Haz',home:'Güney Kore',   away:'Çekya',        venue:'Estadio Akron, GDL', datetime:'2026-06-12T05:00:00'},
+  {group:'B',date:'12 Haz',home:'Kanada',       away:'Bosna-Hersek', venue:'BMO Field, TOR', datetime:'2026-06-12T22:00:00'},
+  {group:'D',date:'13 Haz',home:'ABD',          away:'Paraguay',     venue:'SoFi Stadium, LA', datetime:'2026-06-13T04:00:00'},
+  {group:'B',date:'13 Haz',home:'Katar',        away:'İsviçre',      venue:'BC Place, VAN', datetime:'2026-06-13T22:00:00'},
+  {group:'C',date:'14 Haz',home:'Brezilya',     away:'Fas',          venue:'MetLife Stadium, NJ', datetime:'2026-06-14T01:00:00'},
+  {group:'C',date:'14 Haz',home:'Haiti',        away:'İskoçya',      venue:'Gillette Stadium, BOS', datetime:'2026-06-14T04:00:00'},
+  {group:'D',date:'14 Haz',home:'Avustralya',   away:'Türkiye',      venue:'BC Place, VAN', datetime:'2026-06-14T07:00:00'},
+  {group:'E',date:'14 Haz',home:'Almanya',      away:'Curaçao',      venue:'MetLife Stadium, NJ', datetime:'2026-06-14T20:00:00'},
+  {group:'F',date:'14 Haz',home:'Hollanda',     away:'Japonya',      venue:"Levi's Stadium, SFO", datetime:'2026-06-14T23:00:00'},
+  {group:'E',date:'15 Haz',home:'Fildişi Sahili',away:'Ekvador',     venue:'Hard Rock Stadium, MIA', datetime:'2026-06-15T02:00:00'},
+  {group:'F',date:'15 Haz',home:'İsveç',        away:'Tunus',        venue:'Arrowhead Stadium, KC', datetime:'2026-06-15T05:00:00'},
+  {group:'G',date:'15 Haz',home:'İspanya',      away:'Yeşil Burun',  venue:'MetLife Stadium, NJ', datetime:'2026-06-15T19:00:00'},
+  {group:'H',date:'15 Haz',home:'Belçika',      away:'Mısır',        venue:'Lumen Field, SEA', datetime:'2026-06-15T22:00:00'},
+  {group:'H',date:'16 Haz',home:'Suudi Arabistan',away:'Uruguay',    venue:'Hard Rock Stadium, MIA', datetime:'2026-06-16T01:00:00'},
+  {group:'G',date:'16 Haz',home:'İran',         away:'Yeni Zelanda', venue:'Estadio Akron, GDL', datetime:'2026-06-16T04:00:00'},
+  {group:'I',date:'16 Haz',home:'Fransa',       away:'Senegal',      venue:'AT&T Stadium, DAL', datetime:'2026-06-16T22:00:00'},
+  {group:'I',date:'17 Haz',home:'Irak',         away:'Norveç',       venue:'Arrowhead Stadium, KC', datetime:'2026-06-17T01:00:00'},
+  {group:'J',date:'17 Haz',home:'Arjantin',     away:'Cezayir',      venue:'SoFi Stadium, LA', datetime:'2026-06-17T04:00:00'},
+  {group:'J',date:'17 Haz',home:'Avusturya',    away:'Ürdün',        venue:'BC Place, VAN', datetime:'2026-06-17T07:00:00'},
+  {group:'K',date:'17 Haz',home:'Portekiz',     away:'Kongo',        venue:'MetLife Stadium, NJ', datetime:'2026-06-17T20:00:00'},
+  {group:'L',date:'17 Haz',home:'İngiltere',    away:'Hırvatistan',  venue:"Levi's Stadium, SFO", datetime:'2026-06-17T23:00:00'},
+  {group:'L',date:'18 Haz',home:'Gana',         away:'Panama',       venue:'Arrowhead Stadium, KC', datetime:'2026-06-18T02:00:00'},
+  {group:'K',date:'18 Haz',home:'Özbekistan',   away:'Kolombiya',    venue:'Lumen Field, SEA', datetime:'2026-06-18T05:00:00'},
+  {group:'A',date:'18 Haz',home:'Çekya',        away:'Güney Afrika', venue:'Mercedes-Benz Stadium, ATL', datetime:'2026-06-18T19:00:00'},
+  {group:'B',date:'18 Haz',home:'İsviçre',      away:'Bosna-Hersek', venue:'AT&T Stadium, DAL', datetime:'2026-06-18T22:00:00'},
+  {group:'B',date:'19 Haz',home:'Kanada',       away:'Katar',        venue:'AT&T Stadium, DAL', datetime:'2026-06-19T01:00:00'},
+  {group:'A',date:'19 Haz',home:'Meksika',      away:'Güney Kore',   venue:'Estadio Akron, GDL', datetime:'2026-06-19T04:00:00'},
+  {group:'D',date:'19 Haz',home:'ABD',          away:'Avustralya',   venue:'SoFi Stadium, LA', datetime:'2026-06-19T22:00:00'},
+  {group:'D',date:'20 Haz',home:'İskoçya',      away:'Fas',          venue:'Gillette Stadium, BOS', datetime:'2026-06-20T01:00:00'},
+  {group:'C',date:'20 Haz',home:'Brezilya',     away:'Haiti',        venue:'SoFi Stadium, LA', datetime:'2026-06-20T03:30:00'},
+  {group:'D',date:'20 Haz',home:'Türkiye',      away:'Paraguay',     venue:'AT&T Stadium, DAL', datetime:'2026-06-20T06:00:00'},
+  {group:'F',date:'20 Haz',home:'Hollanda',     away:'İsveç',        venue:'AT&T Stadium, DAL', datetime:'2026-06-20T20:00:00'},
+  {group:'E',date:'20 Haz',home:'Almanya',      away:'Fildişi Sahili',venue:'Mercedes-Benz Stadium, ATL', datetime:'2026-06-20T23:00:00'},
+  {group:'E',date:'21 Haz',home:'Ekvador',      away:'Curaçao',      venue:"Levi's Stadium, SFO", datetime:'2026-06-21T03:00:00'},
+  {group:'F',date:'21 Haz',home:'Tunus',        away:'Japonya',      venue:'Estadio BBVA, MTY', datetime:'2026-06-21T07:00:00'},
+  {group:'G',date:'21 Haz',home:'İspanya',      away:'Suudi Arabistan',venue:'SoFi Stadium, LA', datetime:'2026-06-21T19:00:00'},
+  {group:'H',date:'21 Haz',home:'Belçika',      away:'İran',         venue:'SoFi Stadium, LA', datetime:'2026-06-21T22:00:00'},
+  {group:'H',date:'22 Haz',home:'Uruguay',      away:'Yeşil Burun',  venue:"Levi's Stadium, SFO", datetime:'2026-06-22T01:00:00'},
+  {group:'G',date:'22 Haz',home:'Yeni Zelanda', away:'Mısır',        venue:'Mercedes-Benz Stadium, ATL', datetime:'2026-06-22T04:00:00'},
+  {group:'J',date:'22 Haz',home:'Arjantin',     away:'Avusturya',    venue:'MetLife Stadium, NJ', datetime:'2026-06-22T20:00:00'},
+  {group:'I',date:'23 Haz',home:'Fransa',       away:'Irak',         venue:'MetLife Stadium, NJ', datetime:'2026-06-23T00:00:00'},
+  {group:'I',date:'23 Haz',home:'Norveç',       away:'Senegal',      venue:'Lumen Field, SEA', datetime:'2026-06-23T03:00:00'},
+  {group:'J',date:'23 Haz',home:'Ürdün',        away:'Cezayir',      venue:'Estadio Azteca, MXC', datetime:'2026-06-23T06:00:00'},
+  {group:'K',date:'23 Haz',home:'Portekiz',     away:'Özbekistan',   venue:'SoFi Stadium, LA', datetime:'2026-06-23T20:00:00'},
+  {group:'L',date:'23 Haz',home:'İngiltere',    away:'Gana',         venue:'MetLife Stadium, NJ', datetime:'2026-06-23T23:00:00'},
+  {group:'L',date:'24 Haz',home:'Panama',       away:'Hırvatistan',  venue:'Hard Rock Stadium, MIA', datetime:'2026-06-24T02:00:00'},
+  {group:'K',date:'24 Haz',home:'Kolombiya',    away:'DR Kongo',     venue:'Arrowhead Stadium, KC', datetime:'2026-06-24T05:00:00'},
+  {group:'B',date:'24 Haz',home:'Bosna-Hersek', away:'Katar',        venue:'AT&T Stadium, DAL', datetime:'2026-06-24T22:00:00'},
+  {group:'B',date:'24 Haz',home:'İsviçre',      away:'Kanada',       venue:"Levi's Stadium, SFO", datetime:'2026-06-24T22:00:00'},
+  {group:'D',date:'25 Haz',home:'Fas',          away:'Haiti',        venue:'Hard Rock Stadium, MIA', datetime:'2026-06-25T01:00:00'},
+  {group:'C',date:'25 Haz',home:'İskoçya',      away:'Brezilya',     venue:'MetLife Stadium, NJ', datetime:'2026-06-25T01:00:00'},
+  {group:'A',date:'25 Haz',home:'Çekya',        away:'Meksika',      venue:'Estadio Azteca, MXC', datetime:'2026-06-25T04:00:00'},
+  {group:'A',date:'25 Haz',home:'Güney Afrika', away:'Güney Kore',   venue:'Arrowhead Stadium, KC', datetime:'2026-06-25T04:00:00'},
+  {group:'E',date:'25 Haz',home:'Curaçao',      away:'Fildişi Sahili',venue:'Hard Rock Stadium, MIA', datetime:'2026-06-25T23:00:00'},
+  {group:'E',date:'25 Haz',home:'Ekvador',      away:'Almanya',      venue:'MetLife Stadium, NJ', datetime:'2026-06-25T23:00:00'},
+  {group:'F',date:'26 Haz',home:'Japonya',      away:'İsveç',        venue:'BC Place, VAN', datetime:'2026-06-26T02:00:00'},
+  {group:'F',date:'26 Haz',home:'Tunus',        away:'Hollanda',     venue:"Levi's Stadium, SFO", datetime:'2026-06-26T02:00:00'},
+  {group:'C',date:'26 Haz',home:'Paraguay',     away:'Avustralya',   venue:'Arrowhead Stadium, KC', datetime:'2026-06-26T05:00:00'},
+  {group:'D',date:'26 Haz',home:'Türkiye',      away:'ABD',          venue:'SoFi Stadium, LA', datetime:'2026-06-26T05:00:00'},
+  {group:'I',date:'26 Haz',home:'Norveç',       away:'Fransa',       venue:'AT&T Stadium, DAL', datetime:'2026-06-26T22:00:00'},
+  {group:'I',date:'26 Haz',home:'Senegal',      away:'Irak',         venue:'Mercedes-Benz Stadium, ATL', datetime:'2026-06-26T22:00:00'},
+  {group:'G',date:'27 Haz',home:'Uruguay',      away:'İspanya',      venue:'MetLife Stadium, NJ', datetime:'2026-06-27T03:00:00'},
+  {group:'H',date:'27 Haz',home:'Yeşil Burun',  away:'Suudi Arabistan',venue:'AT&T Stadium, DAL', datetime:'2026-06-27T03:00:00'},
+  {group:'H',date:'27 Haz',home:'Mısır',        away:'İran',         venue:'Estadio Azteca, MXC', datetime:'2026-06-27T06:00:00'},
+  {group:'G',date:'27 Haz',home:'Yeni Zelanda', away:'Belçika',      venue:'Lumen Field, SEA', datetime:'2026-06-27T06:00:00'},
+  {group:'L',date:'28 Haz',home:'Hırvatistan',  away:'Gana',         venue:'Mercedes-Benz Stadium, ATL', datetime:'2026-06-28T00:00:00'},
+  {group:'L',date:'28 Haz',home:'Panama',       away:'İngiltere',    venue:'MetLife Stadium, NJ', datetime:'2026-06-28T00:00:00'},
+  {group:'K',date:'28 Haz',home:'DR Kongo',     away:'Özbekistan',   venue:'Mercedes-Benz Stadium, ATL', datetime:'2026-06-28T02:30:00'},
+  {group:'K',date:'28 Haz',home:'Kolombiya',    away:'Portekiz',     venue:'MetLife Stadium, NJ', datetime:'2026-06-28T02:30:00'},
+  {group:'J',date:'28 Haz',home:'Cezayir',      away:'Avusturya',    venue:'Gillette Stadium, BOS', datetime:'2026-06-28T05:00:00'},
+  {group:'J',date:'28 Haz',home:'Ürdün',        away:'Arjantin',     venue:'Hard Rock Stadium, MIA', datetime:'2026-06-28T05:00:00'}
 ];
-
 const RATING_LABELS = {0:'',1:'Kötü',2:'Ortalama',3:'İyi',4:'Mükemmel',5:'Dünya Sınıfı'};
 
 function getPlayerRating(teamName, playerName){
@@ -2460,6 +2423,26 @@ const DATE_ORDER = {
   '17 Haz':7,'18 Haz':8,'19 Haz':9,'20 Haz':10,'21 Haz':11,'22 Haz':12,
   '23 Haz':13,'24 Haz':14,'25 Haz':15,'26 Haz':16,'27 Haz':17,'28 Haz':18,'29 Haz':19
 };
+function formatDateTime(isoString) {
+  const date = new Date(isoString);
+  const day = date.getDate();
+  const monthNames = ["Haz", "Tem"];
+  const month = monthNames[date.getMonth() - 5] || "";
+  const hour = date.getHours().toString().padStart(2, '0');
+  const min = date.getMinutes().toString().padStart(2, '0');
+  return `${day} ${month} · ${hour}:${min}`;
+}
+
+function formatTimeLeft(ms) {
+  if (ms <= 0) return 'Başladı';
+  const h = Math.floor(ms / 3600000);
+  const d = Math.floor(h / 24);
+  if (d > 1) return d + ' gün kaldı';
+  if (h > 0) return h + ' saat kaldı';
+  const min = Math.floor(ms / 60000);
+  return min + ' dakika kaldı';
+}
+
 function renderFixture(){
   const content=document.getElementById('fixture-content');
   
@@ -2507,7 +2490,7 @@ function renderFixture(){
             <span class="tname">${match.away}</span>
             ${aRatingHtml}
         </div>
-        <div class="fixture-meta">Grup ${match.group}<br><span style="font-size:10px">${match.venue.split(',')[0]}</span></div>
+        <div class="fixture-meta">Grup ${match.group}<br><span style="font-size:11px;color:var(--text)">${match.datetime ? formatDateTime(match.datetime) : match.date}</span><br><span style="font-size:10px">${match.venue.split(',')[0]}</span></div>
       </div>`;
     });
   });
