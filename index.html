@@ -11,7 +11,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, getDocs, collection, onSnapshot, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCDWdzidhYh48aZWel2aQBZ_UgEn7Scyi8",
@@ -31,6 +31,17 @@ const ADMIN_EMAIL = "admin@dunyakupasi26.com";
 
 let currentUser = null;
 let currentUserData = null;
+
+window.liveResults = {};
+
+async function loadLiveResults() {
+  const snap = await getDocs(collection(db, "matchResults"));
+  snap.forEach(d => { window.liveResults[d.id] = d.data(); });
+  if (typeof renderFixture === 'function') renderFixture();
+  if (typeof renderGroups === 'function') renderGroups();
+  if (typeof renderHomeLB === 'function') renderHomeLB();
+}
+loadLiveResults();
 
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
@@ -213,12 +224,12 @@ window.renderFantasyMain = async function() {
       const locked = now >= kickoff;
       const hT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.home);
       const aT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.away);
-      const timeLeft = !locked ? window.formatTimeLeft(kickoff - now) : '';
+      const timeLeft = !locked ? formatTimeLeft(kickoff - now) : '';
 
       return `<div style="border:1px solid ${locked?'var(--border)':'var(--border2)'};border-radius:10px;padding:14px 16px;margin-bottom:10px;background:${locked?'rgba(255,255,255,0.02)':'rgba(0,198,122,0.03)'}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
           <div style="font-size:11px;color:var(--muted)">
-  Grup ${m.group} · ${window.formatDateTime(m.datetime)} · ${m.venue.split(',')[0]}
+  Grup ${m.group} · ${formatDateTime(m.datetime)} · ${m.venue.split(',')[0]}
 </div>
           <div style="font-size:11px;color:${locked?'var(--red)':'var(--green)'}">
             ${locked ? '🔒 Kilitli' : '⏱ ' + timeLeft}
@@ -235,11 +246,7 @@ window.renderFantasyMain = async function() {
             <span class="team-flag" style="font-size:20px; font-family:'Twemoji Country Flags', sans-serif;">${aT?.flag||''}</span>
           </div>
         </div>
-        ${locked
-          ? pred
-            ? `<div style="text-align:center;font-family:var(--font-display);font-size:20px;color:var(--muted)">Tahminin: ${pred.hScore} — ${pred.aScore}</div>`
-            : `<div style="text-align:center;font-size:12px;color:var(--muted)">Tahmin girilmedi</div>`
-          : `<div style="display:grid;grid-template-columns:1fr auto auto auto 1fr;align-items:center;justify-items:center;gap:8px;">
+        ${!locked ? `<div style="display:grid;grid-template-columns:1fr auto auto auto 1fr;align-items:center;justify-items:center;gap:8px;margin-bottom:10px;">
               <div></div>
               <input id="h_${key}" type="number" min="0" max="20" value="${pred?.hScore??''}" placeholder="0"
                 style="width:56px;height:44px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-display);font-size:24px;text-align:center;outline:none">
@@ -252,8 +259,26 @@ window.renderFantasyMain = async function() {
                   ${pred ? 'Güncelle' : 'Kaydet'}
                 </button>
               </div>
-            </div>`
-        }
+            </div>` : ''}
+        ${(() => {
+          const result = matchResults[key];
+          const allRows = Object.entries(allPredictions).map(([uid, preds]) => {
+            const p = preds[key];
+            if (!p) return null;
+            const u = users[uid];
+            if (!u) return null;
+            const isMe = uid === currentUser.uid;
+            const rowPts = (locked && result?.hScore !== undefined) ? calcPoints(p.hScore, p.aScore, result.hScore, result.aScore) : null;
+            const ptsColor = rowPts === 5 ? 'var(--green)' : rowPts === 4 ? '#7ec8e3' : rowPts === 3 ? 'var(--gold)' : rowPts === 2 ? '#aaa' : '#666';
+            return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+              <span style="font-size:12px;flex:1;color:${isMe?'var(--green)':'var(--muted)'};font-weight:${isMe?500:400}">${u.displayName}${isMe?' (sen)':''}</span>
+              <span style="font-family:var(--font-display);font-size:14px;letter-spacing:1px">${p.hScore} — ${p.aScore}</span>
+              ${rowPts !== null ? `<span style="font-family:var(--font-display);font-size:13px;color:${ptsColor};min-width:24px;text-align:right">${rowPts}p</span>` : ''}
+            </div>`;
+          }).filter(Boolean).join('');
+          if (!allRows) return '<div style="font-size:11px;color:var(--muted);padding:4px 0;border-top:1px solid var(--border);padding-top:8px;">Henüz tahmin yok</div>';
+          return `<div style="border-top:1px solid var(--border);padding-top:8px;">${allRows}</div>`;
+        })()}
       </div>`;
     }).join('')}
   </div>`;
@@ -269,28 +294,45 @@ window.renderFantasyMain = async function() {
         const pts = pred && result ? calcPoints(pred.hScore, pred.aScore, result.hScore, result.aScore) : null;
         const hT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.home);
         const aT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.away);
-        return `<div style="border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:8px;display:grid;grid-template-columns:1fr auto 1fr auto;align-items:center;gap:12px;">
-          <div style="display:flex;align-items:center;gap:6px">
-            <span class="team-flag" style="font-family:'Twemoji Country Flags', sans-serif;">${hT?.flag||''}</span><span style="font-size:13px">${m.home}</span>
+        const allPredRowsHtml = Object.entries(allPredictions).map(([uid, preds]) => {
+          const p = preds[key];
+          if (!p) return null;
+          const u = users[uid];
+          if (!u) return null;
+          const isMe = uid === currentUser.uid;
+          const rowPts = result ? calcPoints(p.hScore, p.aScore, result.hScore, result.aScore) : null;
+          const ptsColor = rowPts === 5 ? 'var(--green)' : rowPts === 4 ? '#7ec8e3' : rowPts === 3 ? 'var(--gold)' : rowPts === 2 ? '#aaa' : '#666';
+          return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+            <span style="font-size:12px;flex:1;color:${isMe?'var(--green)':'var(--muted)'};font-weight:${isMe?500:400}">${u.displayName}${isMe?' (sen)':''}</span>
+            <span style="font-family:var(--font-display);font-size:14px;letter-spacing:1px">${p.hScore} — ${p.aScore}</span>
+            ${rowPts !== null ? `<span style="font-family:var(--font-display);font-size:13px;color:${ptsColor};min-width:24px;text-align:right">${rowPts}p</span>` : ''}
+          </div>`;
+        }).filter(Boolean).join('');
+
+        return `<div style="border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:8px;">
+          <div style="display:grid;grid-template-columns:1fr auto 1fr auto;align-items:center;gap:12px;margin-bottom:${allPredRowsHtml?'10px':'0'};">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span class="team-flag" style="font-family:'Twemoji Country Flags', sans-serif;">${hT?.flag||''}</span>
+              <span style="font-size:13px">${m.home}</span>
+            </div>
+            <div style="text-align:center">
+              <div style="font-family:var(--font-display);font-size:20px">${result.hScore} — ${result.aScore}</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
+              <span style="font-size:13px">${m.away}</span>
+              <span class="team-flag" style="font-family:'Twemoji Country Flags', sans-serif;">${aT?.flag||''}</span>
+            </div>
+            <div style="text-align:center;min-width:40px">
+              ${pts !== null ? `<div style="font-family:var(--font-display);font-size:20px;color:${pts>=4?'var(--green)':pts>=3?'var(--gold)':pts>=2?'var(--muted)':'#666'}">${pts}p</div>` : '<div style="font-size:11px;color:var(--muted)">—</div>'}
+            </div>
           </div>
-          <div style="text-align:center">...</div>
-          <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
-            <span style="font-size:13px">${m.away}</span><span class="team-flag" style="font-family:'Twemoji Country Flags', sans-serif;">${aT?.flag||''}</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
-            <span style="font-size:13px">${m.away}</span><span>${aT?.flag||''}</span>
-          </div>
-          <div style="text-align:center;min-width:48px">
-            ${pts !== null ? `<div style="font-family:var(--font-display);font-size:22px;color:${pts>=4?'var(--green)':pts>=3?'var(--gold)':pts>=2?'var(--muted)':'#666'}">${pts}</div><div style="font-size:9px;color:var(--muted)">PUAN</div>` : '<div style="font-size:11px;color:var(--muted)">—</div>'}
-          </div>
+          ${allPredRowsHtml ? `<div style="border-top:1px solid var(--border);padding-top:8px;">${allPredRowsHtml}</div>` : ''}
         </div>`;
       }).join('')}
     </div>`;
   }
 
   container.innerHTML = html;
-
-  if (isAdmin) initAdminListeners(matchResults);
 };
 
 function calcPoints(pH, pA, rH, rA) {
@@ -303,7 +345,6 @@ function calcPoints(pH, pA, rH, rA) {
   const predResult = pH > pA ? 'H' : pH < pA ? 'A' : 'D';
   const realResult = rH > rA ? 'H' : rH < rA ? 'A' : 'D';
   const sameWinner = predResult === realResult;
-  const scoreDiff = Math.abs((pH - pA) - (rH - rA));
   const goalDiff = Math.abs(pH - rH) + Math.abs(pA - rA);
 
   if (sameWinner && goalDiff === 1) return 4;
@@ -377,8 +418,6 @@ function renderAdminPanel(matchResults) {
   </div>`;
 }
 
-function initAdminListeners(matchResults) {
-}
 
 window.saveResult = async function(key) {
   if (!currentUser || currentUser.email !== ADMIN_EMAIL) return;
@@ -390,7 +429,11 @@ window.saveResult = async function(key) {
   if (isNaN(hScore) || isNaN(aScore)) { showToast('Geçerli skor gir!'); return; }
   try {
     await setDoc(doc(db, "matchResults", key), { hScore, aScore, updatedAt: serverTimestamp() });
+    window.liveResults[key] = { hScore, aScore };
     showToast('Sonuç kaydedildi! ✓');
+    if (typeof renderFixture === 'function') renderFixture();
+    if (typeof renderGroups === 'function') renderGroups();
+    if (typeof renderHomeLB === 'function') renderHomeLB();
     renderFantasyMain();
   } catch(e) {
     showToast('Hata: ' + e.message);
@@ -405,8 +448,6 @@ window.matchKey = matchKey;
 function matchKickoffDate(m) {
   return new Date(m.datetime);
 }
-
-
 
 function renderAuthForms() {
   const container = document.getElementById('fantasy-main');
@@ -2335,26 +2376,89 @@ function updateTeamAvg(teamName){
   if(el&&el.dataset.team===teamName) el.textContent=teamAvg(teamName).toFixed(1);
 }
 
+function calcGroupStandings(groupId) {
+  const group = GROUPS.find(g => g.id === groupId);
+  if (!group) return [];
+  const stats = {};
+  group.teams.forEach(t => {
+    stats[t.name] = { name: t.name, flag: t.flag, played: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, pts: 0 };
+  });
+  GROUP_STAGE_FIXTURES.filter(m => m.group === groupId).forEach(m => {
+    const r = window.liveResults?.[matchKey(m)];
+    if (r?.hScore === undefined) return;
+    const h = stats[m.home], a = stats[m.away];
+    if (!h || !a) return;
+    h.played++; a.played++;
+    h.gf += r.hScore; h.ga += r.aScore;
+    a.gf += r.aScore; a.ga += r.hScore;
+    if (r.hScore > r.aScore) { h.w++; h.pts += 3; a.l++; }
+    else if (r.hScore < r.aScore) { a.w++; a.pts += 3; h.l++; }
+    else { h.d++; h.pts++; a.d++; a.pts++; }
+  });
+  return Object.values(stats).sort((a, b) =>
+    b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf
+  );
+}
+
 function renderGroups(){
-  const grid=document.getElementById('groups-grid');
-  grid.innerHTML='';
-  GROUPS.forEach(g=>{
-    const card=document.createElement('div');
-    card.className='group-card';
-    card.innerHTML=`<div class="group-label">GRUP ${g.id} <span class="arrow">→</span></div>`;
-    g.teams.forEach(team=>{
-      const avg=teamAvg(team.name);
-      const row=document.createElement('div');
-      row.className='team-row';
-      row.innerHTML = `<span class="team-flag">${team.flag}</span>
-                 <span class="team-name">${team.name}</span>
-                 <span style="margin-left:auto;font-family:var(--font-display);font-size:15px;color:var(--gold);min-width:28px;text-align:right">
-                    ${avg > 0 ? avg.toFixed(1) : ''}
-                 </span>`;
-      row.addEventListener('click',e=>{e.stopPropagation();openTeam(team.name);});
-      card.appendChild(row);
-    });
-    card.addEventListener('click',()=>openTeam(g.teams[0].name));
+  const grid = document.getElementById('groups-grid');
+  grid.innerHTML = '';
+  GROUPS.forEach(g => {
+    const standings = calcGroupStandings(g.id);
+    const hasResults = standings.some(t => t.played > 0);
+    const card = document.createElement('div');
+    card.className = 'group-card';
+
+    if (hasResults) {
+      card.innerHTML = `<div class="group-label">GRUP ${g.id} <span class="arrow">→</span></div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr style="color:var(--muted);font-size:10px;">
+              <th style="text-align:left;padding:3px 0;font-weight:400">Takım</th>
+              <th style="padding:3px 4px;font-weight:400">O</th>
+              <th style="padding:3px 4px;font-weight:400">G</th>
+              <th style="padding:3px 4px;font-weight:400">B</th>
+              <th style="padding:3px 4px;font-weight:400">M</th>
+              <th style="padding:3px 4px;font-weight:400">A</th>
+              <th style="padding:3px 4px;font-weight:500;color:var(--gold)">P</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${standings.map((t, i) => `
+              <tr style="cursor:pointer;border-top:1px solid var(--border)" onclick="event.stopPropagation();openTeam('${t.name.replace(/'/g,"\\'")}')">
+                <td style="padding:5px 0;">
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <span style="font-size:11px;color:var(--muted);width:12px">${i+1}</span>
+                    <span style="font-size:16px">${t.flag}</span>
+                    <span style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px">${t.name}</span>
+                  </div>
+                </td>
+                <td style="text-align:center;padding:5px 4px;color:var(--muted)">${t.played}</td>
+                <td style="text-align:center;padding:5px 4px">${t.w}</td>
+                <td style="text-align:center;padding:5px 4px">${t.d}</td>
+                <td style="text-align:center;padding:5px 4px">${t.l}</td>
+                <td style="text-align:center;padding:5px 4px;color:var(--muted)">${t.gf}:${t.ga}</td>
+                <td style="text-align:center;padding:5px 4px;font-weight:700;color:var(--gold);font-family:var(--font-display);font-size:14px">${t.pts}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`;
+      card.addEventListener('click', () => openTeam(g.teams[0].name));
+    } else {
+      card.innerHTML = `<div class="group-label">GRUP ${g.id} <span class="arrow">→</span></div>`;
+      g.teams.forEach(team => {
+        const avg = teamAvg(team.name);
+        const row = document.createElement('div');
+        row.className = 'team-row';
+        row.innerHTML = `<span class="team-flag">${team.flag}</span>
+          <span class="team-name">${team.name}</span>
+          <span style="margin-left:auto;font-family:var(--font-display);font-size:15px;color:var(--gold);min-width:28px;text-align:right">
+            ${avg > 0 ? avg.toFixed(1) : ''}
+          </span>`;
+        row.addEventListener('click', e => { e.stopPropagation(); openTeam(team.name); });
+        card.appendChild(row);
+      });
+      card.addEventListener('click', () => openTeam(g.teams[0].name));
+    }
     grid.appendChild(card);
   });
 }
@@ -2418,6 +2522,10 @@ function openTeam(teamName){
 }
 
 
+function matchKey(m) {
+  return m.group + '_' + m.date.replace(/ /g,'') + '_' + m.home.replace(/ /g,'_') + '_' + m.away.replace(/ /g,'_');
+}
+
 const DATE_ORDER = {
   '11 Haz':1,'12 Haz':2,'13 Haz':3,'14 Haz':4,'15 Haz':5,'16 Haz':6,
   '17 Haz':7,'18 Haz':8,'19 Haz':9,'20 Haz':10,'21 Haz':11,'22 Haz':12,
@@ -2432,7 +2540,6 @@ function formatDateTime(isoString) {
   const min = date.getMinutes().toString().padStart(2, '0');
   return `${day} ${month} · ${hour}:${min}`;
 }
-
 function formatTimeLeft(ms) {
   if (ms <= 0) return 'Başladı';
   const h = Math.floor(ms / 3600000);
@@ -2442,7 +2549,6 @@ function formatTimeLeft(ms) {
   const min = Math.floor(ms / 60000);
   return min + ' dakika kaldı';
 }
-
 function renderFixture(){
   const content=document.getElementById('fixture-content');
   
@@ -2473,9 +2579,11 @@ function renderFixture(){
       const hRatingHtml = hAvg > 0 ? `<span class="fixture-rating">${hAvg.toFixed(1)}</span>` : '';
       const aRatingHtml = aAvg > 0 ? `<span class="fixture-rating">${aAvg.toFixed(1)}</span>` : '';
 
-      const isPlayed = match.hScore !== undefined && match.aScore !== undefined;
-      const scoreHtml = isPlayed 
-        ? `<span class="score-num">${match.hScore}</span><span class="score-div">-</span><span class="score-num">${match.aScore}</span>` 
+      const key = matchKey(match);
+      const liveResult = window.liveResults?.[key];
+      const isPlayed = liveResult?.hScore !== undefined;
+      const scoreHtml = isPlayed
+        ? `<span class="score-num">${liveResult.hScore}</span><span class="score-div">-</span><span class="score-num">${liveResult.aScore}</span>`
         : `<span class="vs-text">VS</span>`;
 
       html+=`<div class="fixture-match" onclick="openCompare('${safeHome}','${safeAway}','${match.date}','${safeVenue}')">
@@ -2551,7 +2659,6 @@ function xiFieldCard(p, teamName, color){
 
 function xiRowHtml(players, teamName, color, rowHeightPct){
   if(!players.length) return '';
-  const count = players.length;
   const rowStyle = `position:absolute;width:100%;display:flex;justify-content:space-evenly;align-items:center;top:${rowHeightPct}%;transform:translateY(-50%)`;
   const cards = players.map(p=>xiFieldCard(p, teamName, color)).join('');
   return `<div style="${rowStyle}">${cards}</div>`;
