@@ -202,6 +202,16 @@ window.renderFantasyMain = async function() {
 
   html += `
   <div style="background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:20px;margin-bottom:20px;">
+    <div style="text-align:center;padding:16px 12px 20px;border-bottom:1px solid var(--border);margin-bottom:20px;">
+      <div style="font-size:28px;margin-bottom:8px;">🍗</div>
+      <div style="font-family:var(--font-display);font-size:28px;letter-spacing:3px;color:var(--gold);line-height:1.1;">BÜYÜK ÖDÜL</div>
+      <div style="font-size:13px;color:var(--muted);margin:6px 0 10px;">Turnuva sonunda birinci gelen kişiye</div>
+      <div style="display:inline-block;background:rgba(245,200,66,0.08);border:1px solid rgba(245,200,66,0.3);border-radius:12px;padding:10px 20px;">
+        <span style="font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--text)">1 ADET TAVUK DÖNER</span>
+        <span style="font-size:18px;margin-left:8px;">🍗</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px;">Trendyol Yemek'ten kapına gelir · Sponsor: Kaan</div>
+    </div>
     <div style="font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--gold);margin-bottom:16px;">🏆 PUAN TABLOSU</div>
     ${sortedUsers.map((u, i) => {
       const isMe = u.uid === currentUser.uid;
