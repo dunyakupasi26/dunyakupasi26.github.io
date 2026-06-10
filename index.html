@@ -170,7 +170,7 @@ window.renderFantasyMain = async function() {
       if (result?.hScore !== undefined) {
         const pts = calcPoints(d.data().hScore, d.data().aScore, result.hScore, result.aScore);
         users[uid].points += pts;
-        if (pts === 5) users[uid].exact++;
+        if (pts === 10) users[uid].exact++;
       }
     }
   });
@@ -195,10 +195,6 @@ window.renderFantasyMain = async function() {
   }).reverse().slice(0, 10);
 
   let html = '';
-
-  if (isAdmin) {
-    html += renderAdminPanel(matchResults);
-  }
 
   html += `
   <div style="background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:20px;margin-bottom:20px;">
@@ -227,17 +223,20 @@ window.renderFantasyMain = async function() {
     }).join('')}
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
       <div style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:1px;margin-bottom:10px;">PUANLAMA SİSTEMİ</div>
-      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13px;">
-        <div style="font-family:var(--font-display);font-size:16px;color:var(--green)">5p</div>
-        <div style="color:var(--text)">Tam skor — skoru tamamen bildin <span style="color:var(--muted)">(2-1 dedin, 2-1 oldu)</span></div>
-        <div style="font-family:var(--font-display);font-size:16px;color:#7ec8e3">4p</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13px;margin-bottom:16px;">
+        <div style="font-family:var(--font-display);font-size:16px;color:var(--green)">10p</div>
+        <div style="color:var(--text)">Tam sabet — skoru tamamen bildin <span style="color:var(--muted)">(2-1 dedin, 2-1 oldu)</span></div>
+        <div style="font-family:var(--font-display);font-size:16px;color:#7ec8e3">8p</div>
         <div style="color:var(--text)">Neredeyse — kazananı bildin, skor 1 gol fark etti <span style="color:var(--muted)">(3-1 dedin, 2-1 oldu)</span></div>
-        <div style="font-family:var(--font-display);font-size:16px;color:var(--gold)">3p</div>
+        <div style="font-family:var(--font-display);font-size:16px;color:var(--gold)">6p</div>
         <div style="color:var(--text)">Doğru sonuç — kazananı ya da berabere olacağını bildin</div>
         <div style="font-family:var(--font-display);font-size:16px;color:var(--muted)">2p</div>
         <div style="color:var(--text)">Yakın ama değil — skor 1 gol fark etti ama kazanan değişti <span style="color:var(--muted)">(2-1 dedin, 2-2 oldu)</span></div>
         <div style="font-family:var(--font-display);font-size:16px;color:#555">0p</div>
         <div style="color:var(--muted)">Yanlış tahmin</div>
+      </div>
+      <div style="margin-top:10px;padding:8px 12px;background:rgba(0,198,122,0.05);border:1px solid rgba(0,198,122,0.12);border-radius:8px;font-size:12px;color:var(--muted);line-height:1.5;">
+        ⚡ <span style="color:var(--green);font-weight:500">Eleme aşamalarında puanlar artar:</span> Son 32 ×1.5 · Son 16 ×2 · Çeyrek ×3 · Yarı &amp; 3.'lük ×4 · Final ×5
       </div>
     </div>
   </div>`;
@@ -299,7 +298,7 @@ window.renderFantasyMain = async function() {
             if (!u) return null;
             const isMe = uid === currentUser.uid;
             const rowPts = (locked && result?.hScore !== undefined) ? calcPoints(p.hScore, p.aScore, result.hScore, result.aScore) : null;
-            const ptsColor = rowPts === 5 ? 'var(--green)' : rowPts === 4 ? '#7ec8e3' : rowPts === 3 ? 'var(--gold)' : rowPts === 2 ? '#aaa' : '#666';
+            const ptsColor = rowPts === 10 ? 'var(--green)' : rowPts === 8 ? '#7ec8e3' : rowPts === 6 ? 'var(--gold)' : rowPts === 2 ? '#aaa' : '#666';
             return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
               <span style="font-size:12px;flex:1;color:${isMe?'var(--green)':'var(--muted)'};font-weight:${isMe?500:400}">${u.displayName}${isMe?' (sen)':''}</span>
               <span style="font-family:var(--font-display);font-size:14px;letter-spacing:1px">${p.hScore} — ${p.aScore}</span>
@@ -331,7 +330,7 @@ window.renderFantasyMain = async function() {
           if (!u) return null;
           const isMe = uid === currentUser.uid;
           const rowPts = result ? calcPoints(p.hScore, p.aScore, result.hScore, result.aScore) : null;
-          const ptsColor = rowPts === 5 ? 'var(--green)' : rowPts === 4 ? '#7ec8e3' : rowPts === 3 ? 'var(--gold)' : rowPts === 2 ? '#aaa' : '#666';
+          const ptsColor = rowPts === 10 ? 'var(--green)' : rowPts === 8 ? '#7ec8e3' : rowPts === 6 ? 'var(--gold)' : rowPts === 2 ? '#aaa' : '#666';
           return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
             <span style="font-size:12px;flex:1;color:${isMe?'var(--green)':'var(--muted)'};font-weight:${isMe?500:400}">${u.displayName}${isMe?' (sen)':''}</span>
             <span style="font-family:var(--font-display);font-size:14px;letter-spacing:1px">${p.hScore} — ${p.aScore}</span>
@@ -353,7 +352,7 @@ window.renderFantasyMain = async function() {
               <span class="team-flag" style="font-family:'Twemoji Country Flags', sans-serif;">${aT?.flag||''}</span>
             </div>
             <div style="text-align:center;min-width:40px">
-              ${pts !== null ? `<div style="font-family:var(--font-display);font-size:20px;color:${pts>=4?'var(--green)':pts>=3?'var(--gold)':pts>=2?'var(--muted)':'#666'}">${pts}p</div>` : '<div style="font-size:11px;color:var(--muted)">—</div>'}
+              ${pts !== null ? `<div style="font-family:var(--font-display);font-size:20px;color:${pts>=8?'var(--green)':pts>=6?'var(--gold)':pts>=2?'var(--muted)':'#666'}">${pts}p</div>` : '<div style="font-size:11px;color:var(--muted)">—</div>'}
             </div>
           </div>
           ${allPredRowsHtml ? `<div style="border-top:1px solid var(--border);padding-top:8px;">${allPredRowsHtml}</div>` : ''}
@@ -362,26 +361,39 @@ window.renderFantasyMain = async function() {
     </div>`;
   }
 
+  if (isAdmin) {
+    html += renderAdminPanel(matchResults);
+  }
+
   container.innerHTML = html;
 };
 
-function calcPoints(pH, pA, rH, rA) {
+const STAGE_MULTIPLIERS = {
+  group: 1,
+  r32: 1.5,
+  r16: 2,
+  qf: 3,
+  sf: 4,
+  third: 4,
+  final: 5
+};
+
+function calcPoints(pH, pA, rH, rA, stage) {
   pH = parseInt(pH); pA = parseInt(pA);
   rH = parseInt(rH); rA = parseInt(rA);
   if (isNaN(pH)||isNaN(pA)||isNaN(rH)||isNaN(rA)) return 0;
+  const m = STAGE_MULTIPLIERS[stage] || 1;
 
-  if (pH === rH && pA === rA) return 5;
+  if (pH === rH && pA === rA) return Math.round(10 * m);
 
   const predResult = pH > pA ? 'H' : pH < pA ? 'A' : 'D';
   const realResult = rH > rA ? 'H' : rH < rA ? 'A' : 'D';
   const sameWinner = predResult === realResult;
   const goalDiff = Math.abs(pH - rH) + Math.abs(pA - rA);
 
-  if (sameWinner && goalDiff === 1) return 4;
-
-  if (sameWinner) return 3;
-
-  if (!sameWinner && goalDiff === 1) return 2;
+  if (sameWinner && goalDiff === 1) return Math.round(8 * m);
+  if (sameWinner) return Math.round(6 * m);
+  if (!sameWinner && goalDiff === 1) return Math.round(2 * m);
 
   return 0;
 }
