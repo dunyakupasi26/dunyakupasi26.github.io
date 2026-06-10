@@ -244,10 +244,7 @@ window.renderFantasyMain = async function() {
 
   html += `
   <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-      <div style="font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--green)">TAHMİNLER</div>
-      <button onclick="saveAllPredictions()" style="background:rgba(0,198,122,0.15);border:1px solid var(--border2);color:var(--green);font-size:13px;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:var(--font-body);font-weight:500">Tümünü Kaydet</button>
-    </div>
+    <div style="font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--green);margin-bottom:4px;">TAHMİNLER</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Maç başlamadan önce tahminini gir. Kilitli maçlar değiştirilemez.</div>
     ${upcomingMatches.length === 0 ? '<div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center">Yaklaşan maç yok</div>' : ''}
     ${upcomingMatches.map(m => {
@@ -287,7 +284,7 @@ window.renderFantasyMain = async function() {
               <input id="a_${key}" type="number" min="0" max="20" value="${pred?.aScore ?? ''}" placeholder="—"
                 style="width:56px;height:44px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-display);font-size:24px;text-align:center;outline:none">
               <div style="display:flex;justify-content:flex-start;">
-                <button onclick="savePrediction('${key}')"
+                <button onclick="saveAllPredictions()"
                   style="background:rgba(0,198,122,0.15);border:1px solid var(--border2);color:var(--green);font-size:13px;padding:8px 18px;border-radius:8px;cursor:pointer;font-family:var(--font-body);font-weight:500;white-space:nowrap">
                   ${pred ? 'Güncelle' : 'Kaydet'}
                 </button>
