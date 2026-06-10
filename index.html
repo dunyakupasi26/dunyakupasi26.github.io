@@ -180,9 +180,14 @@ window.renderFantasyMain = async function() {
   const sortedUsers = Object.values(users).sort((a,b) => b.points - a.points || b.exact - a.exact);
 
   const now = new Date();
+  const playedCount = GROUP_STAGE_FIXTURES.filter(m => {
+    const key = matchKey(m);
+    return matchResults[key]?.hScore !== undefined;
+  }).length;
+
   const upcomingMatches = GROUP_STAGE_FIXTURES.filter(m => {
-   return new Date(m.datetime) > now;
-  }).sort((a, b) => new Date(a.datetime) - new Date(b.datetime)).slice(0, 20);
+    return new Date(m.datetime) > now;
+  }).sort((a, b) => new Date(a.datetime) - new Date(b.datetime)).slice(0, 20 + playedCount);
 
   const playedMatches = GROUP_STAGE_FIXTURES.filter(m => {
     const key = matchKey(m);
@@ -210,11 +215,29 @@ window.renderFantasyMain = async function() {
         <div style="font-family:var(--font-display);font-size:24px;color:var(--gold)">${u.points}</div>
       </div>`;
     }).join('')}
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
+      <div style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:1px;margin-bottom:10px;">PUANLAMA SİSTEMİ</div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13px;">
+        <div style="font-family:var(--font-display);font-size:16px;color:var(--green)">5p</div>
+        <div style="color:var(--text)">Tam skor — skoru tamamen bildin <span style="color:var(--muted)">(2-1 dedin, 2-1 oldu)</span></div>
+        <div style="font-family:var(--font-display);font-size:16px;color:#7ec8e3">4p</div>
+        <div style="color:var(--text)">Neredeyse — kazananı bildin, skor 1 gol fark etti <span style="color:var(--muted)">(3-1 dedin, 2-1 oldu)</span></div>
+        <div style="font-family:var(--font-display);font-size:16px;color:var(--gold)">3p</div>
+        <div style="color:var(--text)">Doğru sonuç — kazananı ya da berabere olacağını bildin</div>
+        <div style="font-family:var(--font-display);font-size:16px;color:var(--muted)">2p</div>
+        <div style="color:var(--text)">Yakın ama değil — skor 1 gol fark etti ama kazanan değişti <span style="color:var(--muted)">(2-1 dedin, 2-2 oldu)</span></div>
+        <div style="font-family:var(--font-display);font-size:16px;color:#555">0p</div>
+        <div style="color:var(--muted)">Yanlış tahmin</div>
+      </div>
+    </div>
   </div>`;
 
   html += `
   <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px;">
-    <div style="font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--green);margin-bottom:4px;">TAHMİNLER</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+      <div style="font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--green)">TAHMİNLER</div>
+      <button onclick="saveAllPredictions()" style="background:rgba(0,198,122,0.15);border:1px solid var(--border2);color:var(--green);font-size:13px;padding:8px 16px;border-radius:8px;cursor:pointer;font-family:var(--font-body);font-weight:500">Tümünü Kaydet</button>
+    </div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Maç başlamadan önce tahminini gir. Kilitli maçlar değiştirilemez.</div>
     ${upcomingMatches.length === 0 ? '<div style="color:var(--muted);font-size:13px;padding:20px 0;text-align:center">Yaklaşan maç yok</div>' : ''}
     ${upcomingMatches.map(m => {
@@ -248,10 +271,10 @@ window.renderFantasyMain = async function() {
         </div>
         ${!locked ? `<div style="display:grid;grid-template-columns:1fr auto auto auto 1fr;align-items:center;justify-items:center;gap:8px;margin-bottom:10px;">
               <div></div>
-              <input id="h_${key}" type="number" min="0" max="20" value="${pred?.hScore??''}" placeholder="0"
+              <input id="h_${key}" type="number" min="0" max="20" value="${pred?.hScore ?? ''}" placeholder="—"
                 style="width:56px;height:44px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-display);font-size:24px;text-align:center;outline:none">
               <span style="font-family:var(--font-display);font-size:20px;color:var(--muted);padding:0 4px">—</span>
-              <input id="a_${key}" type="number" min="0" max="20" value="${pred?.aScore??''}" placeholder="0"
+              <input id="a_${key}" type="number" min="0" max="20" value="${pred?.aScore ?? ''}" placeholder="—"
                 style="width:56px;height:44px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-display);font-size:24px;text-align:center;outline:none">
               <div style="display:flex;justify-content:flex-start;">
                 <button onclick="savePrediction('${key}')"
@@ -355,6 +378,44 @@ function calcPoints(pH, pA, rH, rA) {
 
   return 0;
 }
+
+window.saveAllPredictions = async function() {
+  if (!currentUser) return;
+  const now = new Date();
+  const inputs = document.querySelectorAll('[id^="h_"]');
+  let saved = 0, skipped = 0;
+
+  for (const hInput of inputs) {
+    const key = hInput.id.replace('h_', '');
+    const aInput = document.getElementById('a_' + key);
+    if (!aInput) continue;
+    const hVal = hInput.value.trim();
+    const aVal = aInput.value.trim();
+    if (hVal === '' || aVal === '') continue;
+    const hScore = parseInt(hVal);
+    const aScore = parseInt(aVal);
+    if (isNaN(hScore) || isNaN(aScore) || hScore < 0 || aScore < 0) continue;
+    const match = GROUP_STAGE_FIXTURES.find(m => window.matchKey(m) === key);
+    if (!match) continue;
+    if (now >= new Date(match.datetime)) { skipped++; continue; }
+    try {
+      const docId = currentUser.uid + '__' + key;
+      await setDoc(doc(db, "predictions", docId), {
+        uid: currentUser.uid,
+        matchKey: key,
+        hScore, aScore,
+        updatedAt: serverTimestamp()
+      });
+      saved++;
+    } catch(e) {
+      console.error('Tahmin kaydedilemedi:', key, e);
+    }
+  }
+
+  if (saved > 0) { showToast(`${saved} tahmin kaydedildi! ✓`); renderFantasyMain(); }
+  else if (skipped > 0) showToast('Tüm maçlar kilitli.');
+  else showToast('Doldurulmuş tahmin bulunamadı.');
+};
 
 window.savePrediction = async function(key) {
   if (!currentUser) return;
