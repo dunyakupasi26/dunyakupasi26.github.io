@@ -147,14 +147,23 @@ window.renderFantasyMain = async function() {
 
   container.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;padding:60px;color:var(--muted)">Yükleniyor…</div>`;
 
-  const [usersSnap, predictionsSnap] = await Promise.all([
+  const [usersSnap, predictionsSnap, championSnap] = await Promise.all([
     getDocs(collection(db, "users")),
-    getDocs(collection(db, "predictions"))
+    getDocs(collection(db, "predictions")),
+    getDocs(collection(db, "championPicks"))
   ]);
 
   const matchResultsSnap = await getDocs(collection(db, "matchResults"));
   const matchResults = {};
   matchResultsSnap.forEach(d => { matchResults[d.id] = d.data(); });
+
+  const championPicks = {};
+  championSnap.forEach(d => { championPicks[d.id] = d.data(); });
+  const myChampionPick = championPicks[currentUser.uid] || null;
+
+  const championResultSnap = await getDocs(collection(db, "championResult"));
+  let championResult = null;
+  championResultSnap.forEach(d => { if (d.id === 'result') championResult = d.data().team; });
 
   const users = {};
   usersSnap.forEach(d => { users[d.id] = { ...d.data(), uid: d.id, points: 0, predictions: 0, exact: 0 }; });
@@ -172,6 +181,12 @@ window.renderFantasyMain = async function() {
         users[uid].points += pts;
         if (pts === 10) users[uid].exact++;
       }
+    }
+  });
+
+  Object.entries(championPicks).forEach(([uid, pick]) => {
+    if (users[uid] && championResult && pick.team === championResult) {
+      users[uid].points += 50;
     }
   });
 
@@ -195,6 +210,10 @@ window.renderFantasyMain = async function() {
   }).reverse().slice(0, 10);
 
   let html = '';
+
+  const CHAMPION_LOCK = new Date('2026-06-18T16:00:00Z');
+  const championLocked = now >= CHAMPION_LOCK;
+  const allTeamNames = GROUPS.flatMap(g => g.teams).map(t => ({ name: t.name, flag: t.flag }));
 
   html += `
   <div style="background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:20px;margin-bottom:20px;">
@@ -238,6 +257,62 @@ window.renderFantasyMain = async function() {
       <div style="margin-top:10px;padding:8px 12px;background:rgba(0,198,122,0.05);border:1px solid rgba(0,198,122,0.12);border-radius:8px;font-size:12px;color:var(--muted);line-height:1.5;">
         ⚡ <span style="color:var(--green);font-weight:500">Eleme aşamalarında puanlar artar:</span> Son 32 ×1.5 · Son 16 ×2 · Çeyrek ×3 · Yarı &amp; 3.'lük ×4 · Final ×5
       </div>
+    </div>
+  </div>`;
+
+html += `
+  <div style="background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:20px;margin-bottom:20px;">
+    <div style="font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--green);margin-bottom:4px;">🌍 ŞAMPİYON KİM OLUR?</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">
+      ${championLocked
+        ? '🔒 Tahminler kilitlendi.'
+        : `⏱ Son giriş: <strong style="color:var(--text)">18 Haziran 19:00</strong> — kilitlenince değiştirilemez!`}
+      ${championResult ? ` · Şampiyon: <strong style="color:var(--gold)"><span style="font-family: 'Twemoji Country Flags', 'Segoe UI Emoji', sans-serif !important;">${allTeamNames.find(t=>t.name===championResult)?.flag||''}</span> ${championResult}</strong>` : ''}
+    </div>
+    <div style="padding:10px 14px;background:rgba(245,200,66,0.06);border:1px solid rgba(245,200,66,0.2);border-radius:8px;font-size:12px;color:var(--muted);margin-bottom:16px;">
+      🏆 Dünya Kupası şampiyonunu doğru tahmin eden <span style="color:var(--gold);font-weight:600">+50 puan</span> kazanır.
+    </div>
+
+    ${!championLocked && !myChampionPick ? `
+    <div style="margin-bottom:14px;">
+      <select id="champion-select" style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family: 'Twemoji Country Flags', 'Segoe UI Emoji', var(--font-body) !important;font-size:14px;padding:10px 14px;outline:none;cursor:pointer;">
+        <option value="">— Bir takım seç —</option>
+        ${allTeamNames.map(t => `<option value="${t.name}">${t.flag} ${t.name}</option>`).join('')}
+      </select>
+      <button onclick="saveChampionPick()" style="width:100%;margin-top:10px;background:rgba(0,198,122,0.15);border:1px solid var(--border2);color:var(--green);font-family:var(--font-body);font-size:14px;font-weight:500;padding:11px;border-radius:8px;cursor:pointer;">
+        🔒 Tahmini Kilitle
+      </button>
+    </div>` : ''}
+
+    ${myChampionPick ? `
+    <div style="background:rgba(0,198,122,0.06);border:1px solid rgba(0,198,122,0.2);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">
+      <div style="flex:1">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:3px;">Tahminin</div>
+        <div style="font-size:16px;font-weight:500"><span style="font-family: 'Twemoji Country Flags', 'Segoe UI Emoji', sans-serif !important;">${allTeamNames.find(t=>t.name===myChampionPick.team)?.flag||''}</span> ${myChampionPick.team}</div>
+      </div>
+      ${championResult
+        ? myChampionPick.team === championResult
+          ? `<div style="font-family:var(--font-display);font-size:22px;color:var(--green)">+50p 🎉</div>`
+          : `<div style="font-family:var(--font-display);font-size:22px;color:#555">0p</div>`
+        : `<div style="font-size:11px;color:var(--muted)">🔒 Kilitlendi</div>`}
+    </div>` : (!championLocked ? '' : `
+    <div style="font-size:12px;color:var(--muted);padding:8px 0;margin-bottom:14px;">Tahmin girmedin.</div>`)}
+
+    <div style="border-top:1px solid var(--border);padding-top:12px;">
+      <div style="font-size:11px;color:var(--muted);letter-spacing:1px;margin-bottom:8px;">HERKES NE DEDİ</div>
+      ${Object.entries(championPicks).length === 0
+        ? `<div style="font-size:12px;color:var(--muted)">Henüz kimse tahmin girmedi.</div>`
+        : Object.entries(championPicks).map(([uid, pick]) => {
+            const u = users[uid];
+            if (!u) return '';
+            const isMe = uid === currentUser.uid;
+            const correct = championResult && pick.team === championResult;
+            return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+              <span style="font-size:12px;flex:1;color:${isMe?'var(--green)':'var(--muted)'};font-weight:${isMe?500:400}">${u.displayName}${isMe?' (sen)':''}</span>
+              <span style="font-size:13px"><span style="font-family: 'Twemoji Country Flags', 'Segoe UI Emoji', sans-serif !important;">${allTeamNames.find(t=>t.name===pick.team)?.flag||''}</span> ${pick.team}</span>
+              ${championResult ? `<span style="font-family:var(--font-display);font-size:13px;color:${correct?'var(--green)':'#555'}">${correct?'+50p':'0p'}</span>` : ''}
+            </div>`;
+          }).join('')}
     </div>
   </div>`;
 
@@ -398,6 +473,40 @@ function calcPoints(pH, pA, rH, rA, stage) {
   return 0;
 }
 
+window.saveChampionPick = async function() {
+  if (!currentUser) return;
+  const sel = document.getElementById('champion-select');
+  if (!sel || !sel.value) { showToast('Bir takım seç!'); return; }
+  const team = sel.value;
+  const CHAMPION_LOCK = new Date('2026-06-18T16:00:00Z');
+  if (new Date() >= CHAMPION_LOCK) { showToast('Tahmin süresi doldu!'); return; }
+  if (!confirm(`"${team}" olarak kilitlemek istediğine emin misin? Kilitledikten sonra değiştiremezsin!`)) return;
+  try {
+    await setDoc(doc(db, "championPicks", currentUser.uid), {
+      team,
+      uid: currentUser.uid,
+      lockedAt: serverTimestamp()
+    });
+    showToast('Şampiyonluk tahminin kilitlendi! 🔒');
+    renderFantasyMain();
+  } catch(e) {
+    showToast('Hata: ' + e.message);
+  }
+};
+
+window.saveChampionResult = async function() {
+  if (!currentUser || currentUser.email !== ADMIN_EMAIL) return;
+  const sel = document.getElementById('champion-result-select');
+  if (!sel || !sel.value) { showToast('Bir takım seç!'); return; }
+  try {
+    await setDoc(doc(db, "championResult", 'result'), { team: sel.value, updatedAt: serverTimestamp() });
+    showToast('Şampiyon kaydedildi! ✓');
+    renderFantasyMain();
+  } catch(e) {
+    showToast('Hata: ' + e.message);
+  }
+};
+
 window.saveAllPredictions = async function() {
   if (!currentUser) return;
   const now = new Date();
@@ -508,6 +617,20 @@ function renderAdminPanel(matchResults) {
         </div>
       </div>`;
     }).join('')}
+    </div>
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid rgba(245,200,66,0.2);">
+      <div style="font-size:12px;font-weight:600;color:var(--gold);letter-spacing:1px;margin-bottom:10px;">🌍 ŞAMPİYON SONUCU</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select id="champion-result-select" style="flex:1;min-width:160px;background:var(--bg);border:1px solid rgba(245,200,66,0.3);border-radius:8px;color:var(--text);font-family: 'Twemoji Country Flags', 'Segoe UI Emoji', var(--font-body) !important;font-size:13px;padding:8px 12px;outline:none;cursor:pointer;">
+  <option value="">— Şampiyonu seç —</option>
+  ${GROUPS.flatMap(g => g.teams).map(t => 
+    `<option value="${t.name}">&#xFE0F; ${t.flag} ${t.name}</option>`
+  ).join('')}
+</select>
+        <button onclick="saveChampionResult()" style="background:rgba(245,200,66,0.1);border:1px solid rgba(245,200,66,0.3);color:var(--gold);font-size:13px;padding:8px 16px;border-radius:8px;cursor:pointer;white-space:nowrap;">
+          Kaydet
+        </button>
+      </div>
     </div>
   </div>`;
 }
