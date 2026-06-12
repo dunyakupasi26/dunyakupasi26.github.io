@@ -195,14 +195,10 @@ window.renderFantasyMain = async function() {
   const sortedUsers = Object.values(users).sort((a,b) => b.points - a.points || b.exact - a.exact);
 
   const now = new Date();
-  const playedCount = GROUP_STAGE_FIXTURES.filter(m => {
-    const key = matchKey(m);
-    return matchResults[key]?.hScore !== undefined;
-  }).length;
-
   const upcomingMatches = GROUP_STAGE_FIXTURES.filter(m => {
-    return new Date(m.datetime) > now;
-  }).sort((a, b) => new Date(a.datetime) - new Date(b.datetime)).slice(0, 20 + playedCount);
+    const key = matchKey(m);
+    return matchResults[key]?.hScore === undefined && new Date(m.datetime) > now;
+  }).sort((a, b) => new Date(a.datetime) - new Date(b.datetime)).slice(0, 20);
 
   const playedMatches = GROUP_STAGE_FIXTURES.filter(m => {
     const key = matchKey(m);
