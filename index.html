@@ -34,14 +34,14 @@ let currentUserData = null;
 
 window.liveResults = {};
 
-async function loadLiveResults() {
+window.loadLiveResults = async function() {
   const snap = await getDocs(collection(db, "matchResults"));
   snap.forEach(d => { window.liveResults[d.id] = d.data(); });
   if (typeof renderFixture === 'function') renderFixture();
   if (typeof renderGroups === 'function') renderGroups();
   if (typeof renderHomeLB === 'function') renderHomeLB();
-}
-loadLiveResults();
+};
+window.loadLiveResults();
 
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
@@ -3124,6 +3124,10 @@ function openCompare(home,away,date,venue){
 renderGroups();
 renderFixture();
 renderHomeLB();
+
+if (typeof window.loadLiveResults === 'function') {
+  window.loadLiveResults();
+}
 </script>
 
 </body>
