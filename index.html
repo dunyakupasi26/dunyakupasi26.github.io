@@ -195,14 +195,18 @@ window.renderFantasyMain = async function() {
   const sortedUsers = Object.values(users).sort((a,b) => b.points - a.points || b.exact - a.exact);
 
   const now = new Date();
+  const TWO_HOURS_MS = 2 * 60 * 60 * 1000; // 2 saatlik milisaniye değeri
+
   const upcomingMatches = GROUP_STAGE_FIXTURES.filter(m => {
-    const key = matchKey(m);
-    return matchResults[key]?.hScore === undefined && new Date(m.datetime) > now;
+    const kickoff = new Date(m.datetime).getTime();
+    // Maç başlamadıysa VEYA başlayalı 2 saatten az olduysa "Tahminler" listesinde tut
+    return now.getTime() < (kickoff + TWO_HOURS_MS);
   }).sort((a, b) => new Date(a.datetime) - new Date(b.datetime)).slice(0, 20);
 
   const playedMatches = GROUP_STAGE_FIXTURES.filter(m => {
-    const key = matchKey(m);
-    return matchResults[key]?.hScore !== undefined;
+    const kickoff = new Date(m.datetime).getTime();
+    // Maçın başlama saatinin üzerinden en az 2 saat geçtiyse "Geçmiş Maçlar" listesine al
+    return now.getTime() >= (kickoff + TWO_HOURS_MS);
   }).reverse().slice(0, 10);
 
   let html = '';
@@ -336,22 +340,40 @@ html += `
   💬
   <span id="badge-comments-${key}" style="display:none; position:absolute; top:-6px; right:-6px; background:var(--green); color:var(--bg); font-size:9px; font-weight:bold; padding:2px 5px; border-radius:10px; line-height:1; box-shadow:0 1px 3px rgba(0,0,0,0.5);">0</span>
 </button>
-            <div style="font-size:11px;color:${locked?'var(--red)':'var(--green)'}">
-              ${locked ? '🔒 Kilitli' : '⏱ ' + timeLeft}
+            <div style="font-size:11px; color:${locked ? (now.getTime() < kickoff.getTime() + TWO_HOURS_MS ? 'var(--gold)' : 'var(--red)') : 'var(--green)'}; margin-bottom: 8px;">
+  ${!locked ? '⏱ ' + timeLeft : (now.getTime() < kickoff.getTime() + TWO_HOURS_MS ? '🔴 CANLI / Oynanıyor' : '🔒 Maç Bitti')}
+</div>
+	    ${(locked && matchResults[key]?.hScore !== undefined) ? `
+            <div style="font-family:var(--font-display);font-size:26px;color:var(--text);margin-top:6px;letter-spacing:2px;text-align:center;">
+              ${matchResults[key].hScore} - ${matchResults[key].aScore}
             </div>
+            <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;text-align:center;">Güncel Skor</div>
+            ` : ''}
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;margin-bottom:12px;">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span class="team-flag" style="font-size:20px; font-family:'Twemoji Country Flags', sans-serif;">${hT?.flag||''}</span>
-            <span style="font-size:14px;font-weight:500">${m.home}</span>
-          </div>
-          <span style="font-family:var(--font-display);font-size:16px;color:var(--muted)">VS</span>
-          <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
-            <span style="font-size:14px;font-weight:500">${m.away}</span>
-            <span class="team-flag" style="font-size:20px; font-family:'Twemoji Country Flags', sans-serif;">${aT?.flag||''}</span>
-          </div>
-        </div>
+  
+  <div style="display:flex;align-items:center;gap:8px">
+    <span class="team-flag" style="font-size:20px; font-family:'Twemoji Country Flags', sans-serif;">${hT?.flag||''}</span>
+    <span style="font-size:14px;font-weight:500">${m.home}</span>
+  </div>
+
+  <div style="text-align:center;">
+    ${(locked && matchResults[key]?.hScore !== undefined) ? `
+      <div style="font-family:var(--font-display);font-size:22px;color:var(--text);letter-spacing:2px;">
+        ${matchResults[key].hScore} — ${matchResults[key].aScore}
+      </div>
+      <div style="font-size:9px;color:var(--muted);text-transform:uppercase;">Canlı</div>
+    ` : `
+      <span style="font-family:var(--font-display);font-size:16px;color:var(--muted)">VS</span>
+    `}
+  </div>
+
+  <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
+    <span style="font-size:14px;font-weight:500">${m.away}</span>
+    <span class="team-flag" style="font-size:20px; font-family:'Twemoji Country Flags', sans-serif;">${aT?.flag||''}</span>
+  </div>
+</div>
         ${!locked ? `<div style="display:grid;grid-template-columns:1fr auto auto auto 1fr;align-items:center;justify-items:center;gap:8px;margin-bottom:10px;">
               <div></div>
               <input id="h_${key}" type="number" min="0" max="20" value="${pred?.hScore ?? ''}" placeholder="—"
@@ -368,22 +390,33 @@ html += `
             </div>` : ''}
         ${(() => {
           const result = matchResults[key];
+          const totalPreds = Object.values(allPredictions).filter(preds => preds[key]).length;
           const allRows = Object.entries(allPredictions).map(([uid, preds]) => {
             const p = preds[key];
-            if (!p) return null;
+            if (!p || uid === currentUser.uid) return null; // Kendi tahminini gizle
             const u = users[uid];
-            if (!u) return null;
-            const isMe = uid === currentUser.uid;
+            if (!u) return null;          
+            if (!locked) return null;
             const rowPts = (locked && result?.hScore !== undefined) ? calcPoints(p.hScore, p.aScore, result.hScore, result.aScore) : null;
-            const ptsColor = rowPts === 10 ? 'var(--green)' : rowPts === 8 ? '#7ec8e3' : rowPts === 6 ? 'var(--gold)' : rowPts === 2 ? '#aaa' : '#666';
+            const ptsColor = rowPts === 10 ? 'var(--green)' : rowPts === 8 ? '#7ec8e3' : rowPts === 6 ? 'var(--gold)' : rowPts === 2 ? '#aaa' : '#666';           
             return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
-              <span style="font-size:12px;flex:1;color:${isMe?'var(--green)':'var(--muted)'};font-weight:${isMe?500:400}">${u.displayName}${isMe?' (sen)':''}</span>
+              <span style="font-size:12px;flex:1;color:var(--muted);">${u.displayName}</span>
               <span style="font-family:var(--font-display);font-size:14px;letter-spacing:1px">${p.hScore} — ${p.aScore}</span>
               ${rowPts !== null ? `<span style="font-family:var(--font-display);font-size:13px;color:${ptsColor};min-width:24px;text-align:right">${rowPts}p</span>` : ''}
             </div>`;
           }).filter(Boolean).join('');
-          if (!allRows) return '<div style="font-size:11px;color:var(--muted);padding:4px 0;border-top:1px solid var(--border);padding-top:8px;">Henüz tahmin yok</div>';
-          return `<div style="border-top:1px solid var(--border);padding-top:8px;">${allRows}</div>`;
+          if (!locked) {
+            return `<div style="font-size:12px;color:var(--muted);text-align:center;padding:12px 0;border-top:1px solid rgba(255,255,255,0.05);">
+              📊 Bu maça şu ana kadar <strong>${totalPreds}</strong> kişi tahmin yaptı.
+            </div>`;
+          }
+          if (!allRows) {
+            return '<div style="font-size:11px;color:var(--muted);padding:8px 0;text-align:center;">Henüz tahmin yok</div>';
+          }         
+          return `<div style="margin-top:12px;border-top:1px solid rgba(255,255,255,0.05);padding-top:8px;">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;">Diğer Tahminler</div>
+            ${allRows}
+          </div>`;
         })()}
       </div>`;
     }).join('')}
