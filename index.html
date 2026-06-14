@@ -332,7 +332,10 @@ html += `
   Grup ${m.group} · ${formatDateTime(m.datetime)} · ${m.venue.split(',')[0]}
 </div>
           <div style="display:flex;align-items:center;gap:8px;">
-            <button onclick="openCommentPopup('${key}','${m.home} vs ${m.away}')" style="font-size:11px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--muted);padding:3px 9px;border-radius:6px;cursor:pointer;font-family:var(--font-body);">💬</button>
+            <button onclick="openCommentPopup('${key}','${m.home} vs ${m.away}')" style="position:relative; font-size:11px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--muted);padding:3px 9px;border-radius:6px;cursor:pointer;font-family:var(--font-body);">
+  💬
+  <span id="badge-comments-${key}" style="display:none; position:absolute; top:-6px; right:-6px; background:var(--green); color:var(--bg); font-size:9px; font-weight:bold; padding:2px 5px; border-radius:10px; line-height:1; box-shadow:0 1px 3px rgba(0,0,0,0.5);">0</span>
+</button>
             <div style="font-size:11px;color:${locked?'var(--red)':'var(--green)'}">
               ${locked ? '🔒 Kilitli' : '⏱ ' + timeLeft}
             </div>
@@ -440,6 +443,7 @@ html += `
   }
 
   container.innerHTML = html;
+  updateCommentCounts(upcomingMatches);
 };
 
 const STAGE_MULTIPLIERS = {
@@ -450,6 +454,28 @@ const STAGE_MULTIPLIERS = {
   sf: 4,
   third: 4,
   final: 5
+};
+
+window.updateCommentCounts = async function(matches) {
+  for (const m of matches) {
+    const key = matchKey(m);
+    const badge = document.getElementById('badge-comments-' + key);
+    
+    if (badge) {
+      try {
+        // İlgili maçın yorum koleksiyonunu çekiyoruz
+        const snap = await getDocs(collection(db, "matchComments_" + key));
+        const count = snap.size;
+        
+        if (count > 0) {
+          badge.textContent = count;
+          badge.style.display = 'block';
+        }
+      } catch(e) {
+        console.error("Yorum sayısı alınamadı: " + key, e);
+      }
+    }
+  }
 };
 
 function calcPoints(pH, pA, rH, rA, stage) {
@@ -601,6 +627,12 @@ window.postComment = async function(key) {
       createdAt: serverTimestamp()
     });
     await reloadComments(key);
+    const badge = document.getElementById('badge-comments-' + key);
+    if (badge) {
+      const currentCount = parseInt(badge.textContent || "0");
+      badge.textContent = currentCount + 1;
+      badge.style.display = 'block';
+    } 
   } catch(e) {
     showToast('Hata: ' + e.message);
   }
@@ -612,6 +644,16 @@ window.deleteComment = async function(key, commentId) {
   try {
     await deleteDoc(doc(db, "matchComments_" + key, commentId));
     await reloadComments(key);
+    
+    const badge = document.getElementById('badge-comments-' + key);
+    if (badge) {
+      const currentCount = Math.max(0, parseInt(badge.textContent || "0") - 1);
+      badge.textContent = currentCount;
+      
+      if (currentCount === 0) {
+        badge.style.display = 'none';
+      }
+    }    
   } catch(e) {
     showToast('Hata: ' + e.message);
   }
