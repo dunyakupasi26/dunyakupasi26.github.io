@@ -663,8 +663,12 @@ window.saveAllPredictions = async function() {
     }
   }
 
-  if (saved > 0) { showToast(`${saved} tahmin kaydedildi! ✓`); renderFantasyMain(); }
-  else if (skipped > 0) showToast('Tüm maçlar kilitli.');
+  if (saved > 0) {
+    showToast(`${saved} tahmin kaydedildi! ✓`);
+    const scrollY = window.scrollY;
+    await renderFantasyMain();
+    window.scrollTo({ top: scrollY, behavior: 'instant' });
+  } else if (skipped > 0) showToast('Tüm maçlar kilitli.');
   else showToast('Doldurulmuş tahmin bulunamadı.');
 };
 
