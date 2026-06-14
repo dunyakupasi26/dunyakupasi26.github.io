@@ -153,9 +153,7 @@ window.renderFantasyMain = async function() {
     getDocs(collection(db, "championPicks"))
   ]);
 
-  const matchResultsSnap = await getDocs(collection(db, "matchResults"));
-  const matchResults = {};
-  matchResultsSnap.forEach(d => { matchResults[d.id] = d.data(); });
+  const matchResults = window.liveResults || {};
 
   const championPicks = {};
   championSnap.forEach(d => { championPicks[d.id] = d.data(); });
@@ -195,23 +193,19 @@ window.renderFantasyMain = async function() {
   const sortedUsers = Object.values(users).sort((a,b) => b.points - a.points || b.exact - a.exact);
 
   const now = new Date();
-  const TWO_HOURS_MS = 2 * 60 * 60 * 1000; // 2 saatlik milisaniye değeri
 
   const upcomingMatches = GROUP_STAGE_FIXTURES.filter(m => {
     const kickoff = new Date(m.datetime).getTime();
-    // Maç başlamadıysa VEYA başlayalı 2 saatten az olduysa "Tahminler" listesinde tut
     return now.getTime() < (kickoff + TWO_HOURS_MS);
   }).sort((a, b) => new Date(a.datetime) - new Date(b.datetime)).slice(0, 20);
 
   const playedMatches = GROUP_STAGE_FIXTURES.filter(m => {
     const kickoff = new Date(m.datetime).getTime();
-    // Maçın başlama saatinin üzerinden en az 2 saat geçtiyse "Geçmiş Maçlar" listesine al
     return now.getTime() >= (kickoff + TWO_HOURS_MS);
   }).reverse().slice(0, 10);
 
   let html = '';
 
-  const CHAMPION_LOCK = new Date('2026-06-18T16:00:00Z');
   const championLocked = now >= CHAMPION_LOCK;
   const allTeamNames = GROUPS.flatMap(g => g.teams).map(t => ({ name: t.name, flag: t.flag }));
 
@@ -357,7 +351,7 @@ html += `
       <div style="font-family:var(--font-display);font-size:22px;color:var(--text);letter-spacing:2px;">
         ${matchResults[key].hScore} — ${matchResults[key].aScore}
       </div>
-      <div style="font-size:9px;color:var(--muted);text-transform:uppercase;">Canlı</div>
+      <div style="font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-top:2px;">🔴 Canlı</div>
     ` : `
       <span style="font-family:var(--font-display);font-size:16px;color:var(--muted)">VS</span>
     `}
@@ -524,6 +518,9 @@ html += `
   updateCommentCounts(upcomingMatches);
 };
 
+const CHAMPION_LOCK = new Date('2026-06-18T16:00:00Z');
+const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+
 const STAGE_MULTIPLIERS = {
   group: 1,
   r32: 1.5,
@@ -541,7 +538,6 @@ window.updateCommentCounts = async function(matches) {
     
     if (badge) {
       try {
-        // İlgili maçın yorum koleksiyonunu çekiyoruz
         const snap = await getDocs(collection(db, "matchComments_" + key));
         const count = snap.size;
         
@@ -581,7 +577,6 @@ window.saveChampionPick = async function() {
   const sel = document.getElementById('champion-select');
   if (!sel || !sel.value) { showToast('Bir takım seç!'); return; }
   const team = sel.value;
-  const CHAMPION_LOCK = new Date('2026-06-18T16:00:00Z');
   if (new Date() >= CHAMPION_LOCK) { showToast('Tahmin süresi doldu!'); return; }
   if (!confirm(`"${team}" olarak kilitlemek istediğine emin misin? Kilitledikten sonra değiştiremezsin!`)) return;
   try {
