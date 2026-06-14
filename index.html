@@ -531,26 +531,35 @@ const STAGE_MULTIPLIERS = {
   final: 5
 };
 
+window.commentCounts = {};
+
 window.updateCommentCounts = async function(matches) {
   for (const m of matches) {
     const key = matchKey(m);
-    const badge = document.getElementById('badge-comments-' + key);
-    
-    if (badge) {
-      try {
-        const snap = await getDocs(collection(db, "matchComments_" + key));
-        const count = snap.size;
-        
-        if (count > 0) {
-          badge.textContent = count;
-          badge.style.display = 'block';
-        }
-      } catch(e) {
-        console.error("Yorum sayısı alınamadı: " + key, e);
-      }
+    if (window.commentCounts[key] !== undefined) {
+      applyCommentBadge(key, window.commentCounts[key]);
+      continue;
+    }
+    try {
+      const snap = await getDocs(collection(db, "matchComments_" + key));
+      window.commentCounts[key] = snap.size;
+      applyCommentBadge(key, snap.size);
+    } catch(e) {
+      console.error("Yorum sayısı alınamadı: " + key, e);
     }
   }
 };
+
+function applyCommentBadge(key, count) {
+  const badge = document.getElementById('badge-comments-' + key);
+  if (!badge) return;
+  if (count > 0) {
+    badge.textContent = count;
+    badge.style.display = 'block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
 
 function calcPoints(pH, pA, rH, rA, stage) {
   pH = parseInt(pH); pA = parseInt(pA);
@@ -617,10 +626,18 @@ window.openCommentPopup = async function(key, matchTitle) {
   }
 };
 
-window.closeCommentPopup = function() {
+window.closeCommentPopup = async function() {
   const overlay = document.getElementById('comment-overlay');
+  const key = overlay?._currentKey;
   if (overlay) { overlay.classList.remove('open'); overlay._currentKey = null; }
   document.body.style.overflow = '';
+  if (key) {
+    try {
+      const snap = await getDocs(collection(db, "matchComments_" + key));
+      window.commentCounts[key] = snap.size;
+      applyCommentBadge(key, snap.size);
+    } catch(e) {}
+  }
 };
 
 document.addEventListener('keydown', e => { if (e.key === 'Escape') window.closeCommentPopup(); });
@@ -700,12 +717,8 @@ window.postComment = async function(key) {
       createdAt: serverTimestamp()
     });
     await reloadComments(key);
-    const badge = document.getElementById('badge-comments-' + key);
-    if (badge) {
-      const currentCount = parseInt(badge.textContent || "0");
-      badge.textContent = currentCount + 1;
-      badge.style.display = 'block';
-    } 
+    window.commentCounts[key] = (window.commentCounts[key] || 0) + 1;
+    applyCommentBadge(key, window.commentCounts[key]);
   } catch(e) {
     showToast('Hata: ' + e.message);
   }
@@ -717,16 +730,8 @@ window.deleteComment = async function(key, commentId) {
   try {
     await deleteDoc(doc(db, "matchComments_" + key, commentId));
     await reloadComments(key);
-    
-    const badge = document.getElementById('badge-comments-' + key);
-    if (badge) {
-      const currentCount = Math.max(0, parseInt(badge.textContent || "0") - 1);
-      badge.textContent = currentCount;
-      
-      if (currentCount === 0) {
-        badge.style.display = 'none';
-      }
-    }    
+    window.commentCounts[key] = Math.max(0, (window.commentCounts[key] || 1) - 1);
+    applyCommentBadge(key, window.commentCounts[key]);
   } catch(e) {
     showToast('Hata: ' + e.message);
   }
