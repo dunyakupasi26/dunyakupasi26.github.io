@@ -233,7 +233,8 @@ window.renderFantasyMain = async function() {
     ${sortedUsers.map((u, i) => {
       const isMe = u.uid === currentUser.uid;
       const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
-      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;margin-bottom:4px;background:${isMe?'rgba(0,198,122,0.08)':'transparent'};border:${isMe?'1px solid rgba(0,198,122,0.2)':'1px solid transparent'}">
+      const hidden = i >= 10 && !isMe;
+      return `<div class="lb-row" data-index="${i}" style="display:${hidden?'none':'flex'};align-items:center;gap:12px;padding:10px 12px;border-radius:8px;margin-bottom:4px;background:${isMe?'rgba(0,198,122,0.08)':'transparent'};border:${isMe?'1px solid rgba(0,198,122,0.2)':'1px solid transparent'}">
         <div style="font-family:var(--font-display);font-size:20px;color:var(--muted);width:28px;text-align:center">${medal||i+1}</div>
         <div style="flex:1">
           <div style="font-size:14px;font-weight:500;color:${isMe?'var(--green)':'var(--text)'}">${u.displayName}${isMe?' (sen)':''}</div>
@@ -242,6 +243,10 @@ window.renderFantasyMain = async function() {
         <div style="font-family:var(--font-display);font-size:24px;color:var(--gold)">${u.points}</div>
       </div>`;
     }).join('')}
+    ${sortedUsers.length > 10 ? `
+    <button onclick="toggleLeaderboard(this)" style="width:100%;background:none;border:1px solid var(--border);border-radius:8px;padding:8px;cursor:pointer;color:var(--muted);font-size:12px;font-family:var(--font-body);margin-top:4px;">
+      ▼ Tüm sıralamayı göster (${sortedUsers.length - 10} kişi daha)
+    </button>` : ''}
     <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);">
       <div style="font-size:11px;font-weight:600;color:var(--muted);letter-spacing:1px;margin-bottom:10px;">PUANLAMA SİSTEMİ</div>
       <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13px;margin-bottom:16px;">
@@ -301,20 +306,25 @@ html += `
     <div style="font-size:12px;color:var(--muted);padding:8px 0;margin-bottom:14px;">Tahmin girmedin.</div>`)}
 
     <div style="border-top:1px solid var(--border);padding-top:12px;">
-      <div style="font-size:11px;color:var(--muted);letter-spacing:1px;margin-bottom:8px;">HERKES NE DEDİ</div>
-      ${Object.entries(championPicks).length === 0
-        ? `<div style="font-size:12px;color:var(--muted)">Henüz kimse tahmin girmedi.</div>`
-        : Object.entries(championPicks).map(([uid, pick]) => {
-            const u = users[uid];
-            if (!u) return '';
-            const isMe = uid === currentUser.uid;
-            const correct = championResult && pick.team === championResult;
-            return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
-              <span style="font-size:12px;flex:1;color:${isMe?'var(--green)':'var(--muted)'};font-weight:${isMe?500:400}">${u.displayName}${isMe?' (sen)':''}</span>
-              <span style="font-size:13px"><span style="font-family: 'Twemoji Country Flags', 'Segoe UI Emoji', sans-serif !important;">${allTeamNames.find(t=>t.name===pick.team)?.flag||''}</span> ${pick.team}</span>
-              ${championResult ? `<span style="font-family:var(--font-display);font-size:13px;color:${correct?'var(--green)':'#555'}">${correct?'+50p':'0p'}</span>` : ''}
-            </div>`;
-          }).join('')}
+      <button onclick="toggleChampionPicks(this)" style="width:100%;background:none;border:none;padding:4px 0 10px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:11px;font-family:var(--font-body);letter-spacing:1px;">
+        <span>HERKES NE DEDİ (${Object.entries(championPicks).length} tahmin)</span>
+        <span>▼</span>
+      </button>
+      <div id="champion-picks-panel" style="display:none;">
+        ${Object.entries(championPicks).length === 0
+          ? `<div style="font-size:12px;color:var(--muted)">Henüz kimse tahmin girmedi.</div>`
+          : Object.entries(championPicks).map(([uid, pick]) => {
+              const u = users[uid];
+              if (!u) return '';
+              const isMe = uid === currentUser.uid;
+              const correct = championResult && pick.team === championResult;
+              return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+                <span style="font-size:12px;flex:1;color:${isMe?'var(--green)':'var(--muted)'};font-weight:${isMe?500:400}">${u.displayName}${isMe?' (sen)':''}</span>
+                <span style="font-size:13px"><span style="font-family: 'Twemoji Country Flags', 'Segoe UI Emoji', sans-serif !important;">${allTeamNames.find(t=>t.name===pick.team)?.flag||''}</span> ${pick.team}</span>
+                ${championResult ? `<span style="font-family:var(--font-display);font-size:13px;color:${correct?'var(--green)':'#555'}">${correct?'+50p':'0p'}</span>` : ''}
+              </div>`;
+            }).join('')}
+      </div>
     </div>
   </div>`;
 
@@ -1375,6 +1385,27 @@ function togglePredPanel(key) {
   if (!panel) return;
   const isOpen = panel.style.display !== 'none';
   panel.style.display = isOpen ? 'none' : 'block';
+  if (chevron) chevron.textContent = isOpen ? '▼' : '▲';
+}
+
+function toggleLeaderboard(btn) {
+  const rows = document.querySelectorAll('.lb-row');
+  const isOpen = btn.dataset.open === '1';
+  const hidden = Array.from(rows).filter(r => parseInt(r.dataset.index) >= 10).length;
+  rows.forEach(row => {
+    const i = parseInt(row.dataset.index);
+    if (i >= 10) row.style.display = isOpen ? 'none' : 'flex';
+  });
+  btn.dataset.open = isOpen ? '0' : '1';
+  btn.textContent = isOpen ? `▼ Tüm sıralamayı göster (${hidden} kişi daha)` : '▲ Daha az göster';
+}
+
+function toggleChampionPicks(btn) {
+  const panel = document.getElementById('champion-picks-panel');
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  const chevron = btn.querySelector('span:last-child');
   if (chevron) chevron.textContent = isOpen ? '▼' : '▲';
 }
 
