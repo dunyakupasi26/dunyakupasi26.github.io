@@ -37,12 +37,19 @@ window.liveResults = {};
 window.loadLiveResults = async function() {
   const snap = await getDocs(collection(db, "matchResults"));
   snap.forEach(d => { window.liveResults[d.id] = d.data(); });
-  if (typeof renderFixture === 'function') renderFixture();
-  if (typeof renderGroups === 'function') renderGroups();
-  if (typeof renderHomeLB === 'function') renderHomeLB();
+  if (typeof window.renderFixture === 'function') window.renderFixture();
+  if (typeof window.renderGroups === 'function') window.renderGroups();
+  if (typeof window.renderHomeLB === 'function') window.renderHomeLB();
 };
-window.loadLiveResults();
 
+function waitAndLoad() {
+  if (typeof window.renderFixture === 'function') {
+    window.loadLiveResults();
+  } else {
+    setTimeout(waitAndLoad, 50);
+  }
+}
+waitAndLoad();
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
   if (user) {
@@ -3439,13 +3446,13 @@ function openCompare(home,away,date,venue){
   showSection('compare');
 }
 
+window.renderGroups = renderGroups;
+window.renderFixture = renderFixture;
+window.renderHomeLB = renderHomeLB;
+
 renderGroups();
 renderFixture();
 renderHomeLB();
-
-if (typeof window.loadLiveResults === 'function') {
-  window.loadLiveResults();
-}
 </script>
 
 </body>
