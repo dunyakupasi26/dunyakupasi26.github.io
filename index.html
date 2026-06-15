@@ -37,11 +37,19 @@ window.liveResults = {};
 window.loadLiveResults = async function() {
   const snap = await getDocs(collection(db, "matchResults"));
   snap.forEach(d => { window.liveResults[d.id] = d.data(); });
-  if (typeof renderFixture === 'function') renderFixture();
-  if (typeof renderGroups === 'function') renderGroups();
-  if (typeof renderHomeLB === 'function') renderHomeLB();
+  if (typeof window.renderFixture === 'function') window.renderFixture();
+  if (typeof window.renderGroups === 'function') window.renderGroups();
+  if (typeof window.renderHomeLB === 'function') window.renderHomeLB();
 };
-window.loadLiveResults();
+
+function waitAndLoad() {
+  if (typeof window.renderFixture === 'function') {
+    window.loadLiveResults();
+  } else {
+    setTimeout(waitAndLoad, 50);
+  }
+}
+waitAndLoad();
 
 onAuthStateChanged(auth, async (user) => {
   currentUser = user;
@@ -653,7 +661,7 @@ function renderCommentPanel(key, comments) {
   ? `<div style="font-size:13px;color:var(--muted);padding:24px 0;text-align:center;">Henüz yorum yok. İlk yorumu sen yap!</div>`
   : comments.map(c => {
       const isMe = currentUser && c.uid === currentUser.uid;
-      const canDelete = isMe || isAdmin; // Admin ise de silebilir
+      const canDelete = isMe || isAdmin;
       return `<div style="padding:8px 10px;border-radius:8px;margin-bottom:8px;background:${isMe?'rgba(0,198,122,0.06)':'rgba(255,255,255,0.03)'};border:1px solid ${isMe?'rgba(0,198,122,0.15)':'var(--border)'};">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
           <span style="font-size:12px;font-weight:500;color:${isMe?'var(--green)':'var(--text)'}">${c.displayName}</span>
@@ -792,37 +800,6 @@ window.saveAllPredictions = async function() {
   else showToast('Doldurulmuş tahmin bulunamadı.');
 };
 
-window.savePrediction = async function(key) {
-  if (!currentUser) return;
-  const hInput = document.getElementById('h_' + key);
-  const aInput = document.getElementById('a_' + key);
-  if (!hInput || !aInput) return;
-  const hScore = parseInt(hInput.value);
-  const aScore = parseInt(aInput.value);
-  if (isNaN(hScore) || isNaN(aScore) || hScore < 0 || aScore < 0) {
-    showToast('Geçerli bir skor gir!'); return;
-  }
-
-  const match = GROUP_STAGE_FIXTURES.find(m => matchKey(m) === key);
-  if (!match) return;
-  const kickoff = matchKickoffDate(match);
-  if (new Date() >= kickoff) { showToast('Bu maç kilitlendi!'); return; }
-
-  try {
-    const docId = currentUser.uid + '__' + key;
-    await setDoc(doc(db, "predictions", docId), {
-      uid: currentUser.uid,
-      matchKey: key,
-      hScore, aScore,
-      updatedAt: serverTimestamp()
-    });
-    showToast('Tahmin kaydedildi! ✓');
-    renderFantasyMain();
-  } catch(e) {
-    showToast('Hata: ' + e.message);
-  }
-};
-
 function renderAdminPanel(matchResults) {
   const recent = [...GROUP_STAGE_FIXTURES].sort((a,b) => new Date(a.datetime) - new Date(b.datetime));
   
@@ -882,7 +859,6 @@ function renderAdminPanel(matchResults) {
   </div>`;
 }
 
-
 window.deleteResult = async function(key) {
   if (!currentUser || currentUser.email !== ADMIN_EMAIL) return;
   if (!confirm('Bu maç sonucunu silmek istediğine emin misin?')) return;
@@ -890,9 +866,9 @@ window.deleteResult = async function(key) {
     await deleteDoc(doc(db, "matchResults", key));
     delete window.liveResults[key];
     showToast('Sonuç silindi, maç tekrar "VS" oldu! ✓');
-    if (typeof renderFixture === 'function') renderFixture();
-    if (typeof renderGroups === 'function') renderGroups();
-    if (typeof renderHomeLB === 'function') renderHomeLB();
+    if (typeof window.renderFixture === 'function') window.renderFixture();
+    if (typeof window.renderGroups === 'function') window.renderGroups();
+    if (typeof window.renderHomeLB === 'function') window.renderHomeLB();
     renderFantasyMain();
   } catch(e) {
     showToast('Hata: ' + e.message);
@@ -910,9 +886,9 @@ window.saveResult = async function(key) {
     await setDoc(doc(db, "matchResults", key), { hScore, aScore, updatedAt: serverTimestamp() });
     window.liveResults[key] = { hScore, aScore };
     showToast('Sonuç kaydedildi! ✓');
-    if (typeof renderFixture === 'function') renderFixture();
-    if (typeof renderGroups === 'function') renderGroups();
-    if (typeof renderHomeLB === 'function') renderHomeLB();
+    if (typeof window.renderFixture === 'function') window.renderFixture();
+    if (typeof window.renderGroups === 'function') window.renderGroups();
+    if (typeof window.renderHomeLB === 'function') window.renderHomeLB();
     renderFantasyMain();
   } catch(e) {
     showToast('Hata: ' + e.message);
@@ -993,7 +969,6 @@ async function handleForgotPassword() {
   }
 }
 
-// Global olarak erişilebilmesi için window nesnesine bağla (Eğer inline onclick kullanıyorsan)
 window.handleForgotPassword = handleForgotPassword;
 
 window.switchAuthTab = function(tab) {
@@ -3067,7 +3042,6 @@ function openTeam(teamName){
   showSection('team');
 }
 
-
 function matchKey(m) {
   return m.group + '_' + m.date.replace(/ /g,'') + '_' + m.home.replace(/ /g,'_') + '_' + m.away.replace(/ /g,'_');
 }
@@ -3183,7 +3157,6 @@ function toggleXiPanel(){
   xiPanelOpen = !xiPanelOpen;
   renderXiPanel();
 }
-
 
 function getAutoFormation(players){
   const byPos = {GK:[], DF:[], MF:[], FW:[]};
@@ -3439,13 +3412,13 @@ function openCompare(home,away,date,venue){
   showSection('compare');
 }
 
+window.renderGroups = renderGroups;
+window.renderFixture = renderFixture;
+window.renderHomeLB = renderHomeLB;
+
 renderGroups();
 renderFixture();
 renderHomeLB();
-
-if (typeof window.loadLiveResults === 'function') {
-  window.loadLiveResults();
-}
 </script>
 
 </body>
