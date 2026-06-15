@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, getDocs, collection, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -949,6 +949,12 @@ function renderAuthForms() {
       <input id="login-pass" type="password" placeholder="Şifre" style="${inputStyle()}" onkeydown="if(event.key==='Enter')handleLogin()">
       <div id="auth-error" style="color:var(--red);font-size:12px;min-height:18px;margin-bottom:8px"></div>
       <button onclick="handleLogin()" style="${btnStyle()}">Giriş Yap →</button>
+      
+      <div style="text-align: right; margin-top: 8px;">
+        <button type="button" onclick="handleForgotPassword()" style="background: none; border: none; color: #00c67a; cursor: pointer; font-size: 13px;">
+          Şifremi Unuttum
+        </button>
+      </div>
     </div>
 
     <div id="form-register" style="display:none;background:var(--card);border:1px solid var(--border2);border-radius:14px;padding:28px;">
@@ -962,6 +968,33 @@ function renderAuthForms() {
     </div>
   </div>`;
 }
+
+async function handleForgotPassword() {
+  const email = document.getElementById("login-email")?.value || ""; 
+  
+  if (!email) {
+    alert("Lütfen önce e-posta adresinizi yazın.");
+    return;
+  }
+
+  try {
+    const auth = getAuth();
+    await sendPasswordResetEmail(auth, email);
+    alert("Şifre sıfırlama e-postası gönderildi! Lütfen gelen kutunuzu (ve spam klasörünü) kontrol edin.");
+  } catch (error) {
+    console.error("Hata:", error);
+    if (error.code === "auth/user-not-found") {
+      alert("Bu e-posta adresiyle kayıtlı bir kullanıcı bulunamadı.");
+    } else if (error.code === "auth/invalid-email") {
+      alert("Lütfen geçerli bir e-posta adresi girin.");
+    } else {
+      alert("Şifre sıfırlama isteği gönderilirken bir hata oluştu: " + error.message);
+    }
+  }
+}
+
+// Global olarak erişilebilmesi için window nesnesine bağla (Eğer inline onclick kullanıyorsan)
+window.handleForgotPassword = handleForgotPassword;
 
 window.switchAuthTab = function(tab) {
   const loginForm = document.getElementById('form-login');
