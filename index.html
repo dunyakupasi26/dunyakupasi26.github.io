@@ -210,7 +210,7 @@ window.renderFantasyMain = async function() {
   const playedMatches = GROUP_STAGE_FIXTURES.filter(m => {
     const kickoff = new Date(m.datetime).getTime();
     return now.getTime() >= (kickoff + TWO_HOURS_MS);
-  }).reverse().slice(0, 10);
+  }).reverse();
 
   let html = '';
 
@@ -480,6 +480,8 @@ html += `
         const pts = pred && result ? calcPoints(pred.hScore, pred.aScore, result.hScore, result.aScore) : null;
         const hT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.home);
         const aT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.away);
+        const predCount = Object.values(allPredictions).filter(p => p[key]).length;
+
         const allPredRowsHtml = Object.entries(allPredictions).map(([uid, preds]) => {
           const p = preds[key];
           if (!p) return null;
@@ -488,15 +490,15 @@ html += `
           const isMe = uid === currentUser.uid;
           const rowPts = result ? calcPoints(p.hScore, p.aScore, result.hScore, result.aScore) : null;
           const ptsColor = rowPts === 10 ? 'var(--green)' : rowPts === 8 ? '#7ec8e3' : rowPts === 6 ? 'var(--gold)' : rowPts === 2 ? '#aaa' : '#666';
-          return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+          return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
             <span style="font-size:12px;flex:1;color:${isMe?'var(--green)':'var(--muted)'};font-weight:${isMe?500:400}">${u.displayName}${isMe?' (sen)':''}</span>
             <span style="font-family:var(--font-display);font-size:14px;letter-spacing:1px">${p.hScore} — ${p.aScore}</span>
             ${rowPts !== null ? `<span style="font-family:var(--font-display);font-size:13px;color:${ptsColor};min-width:24px;text-align:right">${rowPts}p</span>` : ''}
           </div>`;
         }).filter(Boolean).join('');
 
-        return `<div style="border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:8px;">
-          <div style="display:grid;grid-template-columns:1fr auto 1fr auto;align-items:center;gap:12px;margin-bottom:${allPredRowsHtml?'10px':'0'};">
+        return `<div style="border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden;">
+          <div style="display:grid;grid-template-columns:1fr auto 1fr auto;align-items:center;gap:12px;padding:12px 16px;">
             <div style="display:flex;align-items:center;gap:6px">
               <span class="team-flag" style="font-family:'Twemoji Country Flags', sans-serif;">${hT?.flag||''}</span>
               <span style="font-size:13px">${m.home}</span>
@@ -512,7 +514,16 @@ html += `
               ${pts !== null ? `<div style="font-family:var(--font-display);font-size:20px;color:${pts>=8?'var(--green)':pts>=6?'var(--gold)':pts>=2?'var(--muted)':'#666'}">${pts}p</div>` : '<div style="font-size:11px;color:var(--muted)">—</div>'}
             </div>
           </div>
-          ${allPredRowsHtml ? `<div style="border-top:1px solid var(--border);padding-top:8px;">${allPredRowsHtml}</div>` : ''}
+          ${allPredRowsHtml ? `
+          <div style="border-top:1px solid rgba(255,255,255,0.06);">
+            <button onclick="togglePredPanel('${key}')" style="width:100%;background:none;border:none;padding:8px 16px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:11px;font-family:var(--font-body);">
+              <span>📊 ${predCount} tahmin</span>
+              <span id="pred-chevron-${key}">▼</span>
+            </button>
+            <div id="pred-panel-${key}" style="display:none;padding:4px 16px 12px;">
+              ${allPredRowsHtml}
+            </div>
+          </div>` : ''}
         </div>`;
       }).join('')}
     </div>`;
@@ -1357,6 +1368,15 @@ window.showSection = function(id) {
   </div>
 </main>
 <script>
+
+function togglePredPanel(key) {
+  const panel = document.getElementById('pred-panel-' + key);
+  const chevron = document.getElementById('pred-chevron-' + key);
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (chevron) chevron.textContent = isOpen ? '▼' : '▲';
+}
 
 const GROUPS = [
   { id:'A', teams:[
