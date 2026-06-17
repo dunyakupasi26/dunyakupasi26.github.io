@@ -514,7 +514,7 @@ html += `
               <span style="font-size:13px">${m.home}</span>
             </div>
             <div style="text-align:center">
-              <div style="font-family:var(--font-display);font-size:20px">${result.hScore} — ${result.aScore}</div>
+              <div style="font-family:var(--font-display);font-size:20px">${result?.hScore} — ${result?.aScore}</div>
             </div>
             <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
               <span style="font-size:13px">${m.away}</span>
@@ -2795,8 +2795,8 @@ const GROUP_STAGE_FIXTURES = [
   {group:'F',date:'14 Haz',home:'Hollanda',     away:'Japonya',      venue:"Levi's Stadium, SFO", datetime:'2026-06-14T23:00:00'},
   {group:'E',date:'15 Haz',home:'Fildişi Sahili',away:'Ekvador',     venue:'Hard Rock Stadium, MIA', datetime:'2026-06-15T02:00:00'},
   {group:'F',date:'15 Haz',home:'İsveç',        away:'Tunus',        venue:'Arrowhead Stadium, KC', datetime:'2026-06-15T05:00:00'},
-  {group:'G',date:'15 Haz',home:'İspanya',      away:'Yeşil Burun',  venue:'MetLife Stadium, NJ', datetime:'2026-06-15T19:00:00'},
-  {group:'H',date:'15 Haz',home:'Belçika',      away:'Mısır',        venue:'Lumen Field, SEA', datetime:'2026-06-15T22:00:00'},
+  {group:'H',date:'15 Haz',home:'İspanya',      away:'Yeşil Burun',  venue:'MetLife Stadium, NJ', datetime:'2026-06-15T19:00:00'},
+  {group:'G',date:'15 Haz',home:'Belçika',      away:'Mısır',        venue:'Lumen Field, SEA', datetime:'2026-06-15T22:00:00'},
   {group:'H',date:'16 Haz',home:'Suudi Arabistan',away:'Uruguay',    venue:'Hard Rock Stadium, MIA', datetime:'2026-06-16T01:00:00'},
   {group:'G',date:'16 Haz',home:'İran',         away:'Yeni Zelanda', venue:'Estadio Akron, GDL', datetime:'2026-06-16T04:00:00'},
   {group:'I',date:'16 Haz',home:'Fransa',       away:'Senegal',      venue:'AT&T Stadium, DAL', datetime:'2026-06-16T22:00:00'},
