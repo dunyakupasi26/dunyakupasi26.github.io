@@ -174,21 +174,19 @@ async function renderFantasyMainInner(container, isAdmin) {
   ]);
 
   const matchResults = window.liveResults || {};
-
   const championPicks = {};
   championSnap.forEach(d => { championPicks[d.id] = d.data(); });
   const myChampionPick = championPicks[currentUser.uid] || null;
-
   const championResultSnap = await getDocs(collection(db, "championResult"));
   let championResult = null;
   championResultSnap.forEach(d => { if (d.id === 'result') championResult = d.data().team; });
-
   const users = {};
   usersSnap.forEach(d => { users[d.id] = { ...d.data(), uid: d.id, points: 0, predictions: 0, exact: 0 }; });
-
+  const validMatchKeys = new Set(GROUP_STAGE_FIXTURES.map(m => matchKey(m)));
   const allPredictions = {};
   predictionsSnap.forEach(d => {
-    const [uid, matchKey] = d.id.split('__');
+    const [uid, matchKey] = d.id.split('__');   
+    if (!validMatchKeys.has(matchKey)) return;
     if (!allPredictions[uid]) allPredictions[uid] = {};
     allPredictions[uid][matchKey] = d.data();
     if (users[uid]) {
