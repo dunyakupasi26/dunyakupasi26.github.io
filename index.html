@@ -1259,8 +1259,13 @@ window.showSection = function(id) {
       display: none;
     }
     #bottom-nav {
-      display: flex !important;
-    }
+    display: flex !important;
+    justify-content: space-around; /* Butonların arasına eşit boşluk atar */
+  }
+  
+  #bottom-nav button {
+    flex: 1; /* Her butonun eşit oranda genişlemesini sağlar */
+  }
 
     main { padding: 12px 12px 80px; }
 
