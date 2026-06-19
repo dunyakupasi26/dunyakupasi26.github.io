@@ -1290,6 +1290,18 @@ window.showSection = function(id) {
     /* ── GRUPLAR ── */
     .groups-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
     .group-card { padding: 14px; }
+    @keyframes kartPopupMobil { 
+      0% { transform: translate(-50%, -50%) scale(0.9); opacity: 0; } 
+      100% { transform: translate(-50%, -50%) scale(1.02); opacity: 1; } 
+    }
+    .group-card.buyumus { 
+      width: 92% !important; 
+      transform: translate(-50%, -50%) scale(1.02) !important; 
+      animation: kartPopupMobil 0.2s ease-out forwards !important; 
+    }
+    .group-card.buyumus:hover { 
+      transform: translate(-50%, -50%) scale(1.02) !important; 
+    }
 
     /* ── TAKIM DETAY ── */
     .team-detail-header { flex-direction: column; text-align: center; gap: 10px; padding: 16px; }
