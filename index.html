@@ -1247,56 +1247,138 @@ window.showSection = function(id) {
   .compare-player { transition: background 0.15s, border-color 0.15s; border-radius:6px; padding: 7px 6px; border:1px solid transparent; margin:2px 0; }
 
   @media (max-width: 768px) {
-    
-    .field-scroll-container {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        margin: 16px -12px;
-        padding: 0 12px;
-    }
-    .field-wrapper {
-        width: 680px !important;
-        margin: 0 auto;
-    }
-    .xi-field-card-text { font-size: 9px !important; }
-    .xi-field-card-club { font-size: 8px !important; }
-    
-    .header-inner { flex-wrap: wrap; height: auto; padding: 12px 16px; gap: 12px; justify-content: center; }
+
+    /* ── HEADER & NAV ── */
+    .header-inner { padding: 10px 16px; gap: 8px; }
     .header-badge { display: none; }
-    main { padding: 16px 12px; }
-    
-    .hero { padding: 24px 20px; }
-    .hero h1 { font-size: 32px; letter-spacing: 2px; }
-    .hero::before { font-size: 48px; right: -10px; opacity: 0.03; }
-    .hero-stats { grid-template-columns: 1fr 1fr; display: grid; gap: 16px; margin-top: 20px; }
-    
-    #sec-home > div:nth-child(2) { grid-template-columns: 1fr !important; }
-    
-    .team-detail-header { flex-direction: column; text-align: center; gap: 12px; padding: 20px; }
-    .team-avg-rating { margin-left: 0; margin-top: 12px; }
-    
-    .player-row { grid-template-columns: 24px 1fr auto !important; gap: 8px; padding: 12px 8px; }
+    .logo { font-size: 18px; }
+    #auth-header-area span:first-child { display: none; }
+
+    /* Bottom nav */
+    header nav {
+      display: none;
+    }
+    #bottom-nav {
+      display: flex !important;
+    }
+
+    main { padding: 12px 12px 80px; }
+
+    /* ── HERO ── */
+    .hero { padding: 20px 16px; }
+    .hero h1 { font-size: 28px; letter-spacing: 1.5px; }
+    .hero p { font-size: 13px; }
+    .hero::before { font-size: 40px; right: -8px; opacity: 0.03; }
+    .hero-stats { grid-template-columns: 1fr 1fr; display: grid; gap: 10px; margin-top: 16px; }
+    .stat-pill { padding: 10px 12px; }
+    .stat-pill .num { font-size: 24px; }
+
+    /* ── ANA SAYFA KARTLARI ── */
+    #sec-home > div:nth-child(2) { grid-template-columns: 1fr !important; gap: 10px !important; }
+
+    /* ── GRUPLAR ── */
+    .groups-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+    .group-card { padding: 14px; }
+
+    /* ── TAKIM DETAY ── */
+    .team-detail-header { flex-direction: column; text-align: center; gap: 10px; padding: 16px; }
+    .team-avg-rating { margin-left: 0; margin-top: 10px; }
+    .player-row { grid-template-columns: 24px 1fr auto !important; gap: 8px; padding: 10px 8px; }
     .player-num { align-self: center; }
     .star-rating { flex-direction: column; align-items: flex-end; gap: 2px; }
     .star { width: 18px; height: 18px; font-size: 16px; cursor: default; }
     .rating-label { min-width: auto; margin-left: 0; margin-top: 2px; font-size: 10px; }
-    
-    .fixture-match { grid-template-columns: 1fr 60px 1fr; gap: 8px; padding: 12px; }
-    .fixture-team { flex-direction: column; gap: 4px; text-align: center !important; }
+
+    /* ── FİKSTÜR ── */
+    .fixture-match { grid-template-columns: 1fr 52px 1fr; gap: 6px; padding: 10px 12px; }
+    .fixture-team { flex-direction: column; gap: 3px; text-align: center !important; }
+    .fixture-team .flag { font-size: 22px; }
     .fixture-team.right { flex-direction: column; }
-    .fixture-meta { grid-column: 1 / 4; text-align: center; padding-top: 8px; border-top: 1px solid var(--border); margin-top: 4px; }
-    
+    .tname { font-size: 11px !important; }
+    .score-num { font-size: 20px !important; }
+    .fixture-meta { grid-column: 1 / 4; text-align: center; padding-top: 8px; border-top: 1px solid var(--border); margin-top: 4px; font-size: 10px; }
+
+    /* ── KARŞILAŞTIRMA ── */
     .compare-grid { grid-template-columns: 1fr; }
-    .compare-teams-row { flex-wrap: wrap; gap: 10px; }
-    .compare-flag { font-size: 36px; }
-    .compare-team-name { font-size: 24px; }
-    
+    .compare-teams-row { flex-wrap: wrap; gap: 8px; }
+    .compare-flag { font-size: 32px; }
+    .compare-team-name { font-size: 20px; }
+
+    /* ── İLK 11 SAHA ── */
+    .field-scroll-container { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 16px -12px; padding: 0 12px; }
+    .field-wrapper { width: 680px !important; margin: 0 auto; }
+    .xi-field-card-text { font-size: 9px !important; }
+    .xi-field-card-club { font-size: 8px !important; }
     #xi-panel > div:nth-child(2) > div:nth-child(1) { grid-template-columns: 1fr; gap: 16px; }
     #xi-panel > div:nth-child(2) > div:nth-child(2) { grid-template-columns: 1fr; }
-    
-    #club-edit-modal > div { padding: 20px; min-width: auto; width: 90%; }
-    #rankings-modal { padding: 20px 10px; }
-}
+
+    /* ── FANTASY ── */
+    .fantasy-match-card { padding: 12px !important; }
+
+    /* Tahmin input grid'i mobilde tam ortalı */
+    .pred-input-grid {
+      grid-template-columns: 1fr auto auto auto 1fr !important;
+      gap: 6px !important;
+    }
+    .pred-input-grid input {
+      width: 48px !important;
+      height: 40px !important;
+      font-size: 20px !important;
+    }
+    .pred-input-grid button {
+      font-size: 12px !important;
+      padding: 7px 12px !important;
+    }
+
+    /* Geçmiş maçlar grid'i */
+    .played-match-grid {
+      grid-template-columns: 1fr auto 1fr auto !important;
+      gap: 6px !important;
+    }
+    .played-match-grid .team-flag { font-size: 18px; }
+    .played-match-grid span[style*="font-size:13px"] { font-size: 11px !important; }
+
+    /* Puan tablosu */
+    .lb-row { padding: 8px 10px !important; gap: 8px !important; }
+
+    /* Modaller */
+    #club-edit-modal > div { padding: 16px; min-width: auto; width: 92%; }
+    #rankings-modal { padding: 16px 10px; }
+  }
+
+  /* ── BOTTOM NAV ── */
+  #bottom-nav {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    background: rgba(6,12,8,0.96);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(0,198,122,0.12);
+    padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+    grid-template-columns: repeat(4, 1fr);
+  }
+  #bottom-nav button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: var(--font-body);
+    font-size: 10px;
+    padding: 4px 0;
+    cursor: pointer;
+    transition: color 0.15s;
+  }
+  #bottom-nav button .nav-icon { font-size: 20px; line-height: 1; }
+  #bottom-nav button.active { color: var(--green); }
+  #bottom-nav button.active .nav-icon-fantasy { color: var(--gold); }
+
 #comment-overlay {
   display:none;position:fixed;inset:0;z-index:1000;
   background:rgba(0,0,0,0.55);backdrop-filter:blur(3px);
@@ -1349,6 +1431,25 @@ window.showSection = function(id) {
     </div>
   </div>
 </header>
+
+<nav id="bottom-nav">
+  <button id="bnav-home" onclick="showSection('home')" class="active">
+    <span class="nav-icon">🏠</span>
+    <span>Ana Sayfa</span>
+  </button>
+  <button id="bnav-groups" onclick="showSection('groups')">
+    <span class="nav-icon">🌍</span>
+    <span>Gruplar</span>
+  </button>
+  <button id="bnav-fixture" onclick="showSection('fixture')">
+    <span class="nav-icon">📅</span>
+    <span>Fikstür</span>
+  </button>
+  <button id="bnav-fantasy" onclick="showSection('fantasy')">
+    <span class="nav-icon nav-icon-fantasy">🏆</span>
+    <span style="color:inherit">Fantasy</span>
+  </button>
+</nav>
 <main>
   <div id="sec-home" class="section active">
     <div class="hero">
@@ -2931,6 +3032,12 @@ function showSection(id){
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   const map={'home':'Ana Sayfa','groups':'Gruplar','fixture':'Fikstür','team':'Gruplar','compare':'Fikstür','fantasy':'🏆 Fantasy'};
   document.querySelectorAll('.nav-btn').forEach(b=>{ if(b.textContent===map[id]) b.classList.add('active'); });
+
+  const bnavMap = {'home':'bnav-home','groups':'bnav-groups','fixture':'bnav-fixture','team':'bnav-groups','compare':'bnav-fixture','fantasy':'bnav-fantasy'};
+  document.querySelectorAll('#bottom-nav button').forEach(b=>b.classList.remove('active'));
+  const bnavId = bnavMap[id];
+  if(bnavId) { const btn = document.getElementById(bnavId); if(btn) btn.classList.add('active'); }
+
   if(id==='home') renderHomeLB();
   window.scrollTo(0,0);
 }
