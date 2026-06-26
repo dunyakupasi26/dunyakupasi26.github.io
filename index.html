@@ -57,14 +57,12 @@ onAuthStateChanged(auth, async (user) => {
     const snap = await getDoc(doc(db, "users", user.uid));
     currentUserData = snap.exists() ? snap.data() : null;
     updateAuthUI(true);
-    if (typeof window.renderPoll === 'function') window.renderPoll();
     if (document.getElementById('sec-fantasy')?.classList.contains('active')) {
       renderFantasyMain();
     }
   } else {
     currentUserData = null;
     updateAuthUI(false);
-    if (typeof window.renderPoll === 'function') window.renderPoll();
   }
 });
 
@@ -195,9 +193,11 @@ async function renderFantasyMainInner(container, isAdmin) {
       users[uid].predictions++;
       const result = matchResults[matchKey];
       if (result?.hScore !== undefined) {
-        const pts = calcPoints(d.data().hScore, d.data().aScore, result.hScore, result.aScore);
+        const predData = d.data();
+        const stage = getStageFromKey(matchKey);
+        const pts = calcPoints(predData.hScore, predData.aScore, result.hScore, result.aScore, stage, predData.penaltyWinner, result.penaltyWinner);
         users[uid].points += pts;
-        if (pts === 10) users[uid].exact++;
+        if (pts >= 10) users[uid].exact++;
       }
     }
   });
@@ -374,7 +374,7 @@ html += `
       return `<div style="border:1px solid ${isLive?'rgba(245,200,66,0.3)':locked?'var(--border)':'var(--border2)'};border-radius:12px;padding:16px;margin-bottom:12px;background:${isLive?'rgba(245,200,66,0.04)':locked?'rgba(255,255,255,0.02)':'rgba(0,198,122,0.03)'};${isLive?'box-shadow:0 0 0 1px rgba(245,200,66,0.08);':''}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
           <div style="font-size:11px;color:var(--muted)">
-  Grup ${m.group} · ${formatDateTime(m.datetime)} · ${m.venue.split(',')[0]}
+  ${m.stage ? {r32:'Son 32',r16:'Son 16',qf:'Çeyrek Final',sf:'Yarı Final',third:'3.lük Maçı',final:'Final'}[m.stage]||m.group : 'Grup '+m.group} · ${formatDateTime(m.datetime)} · ${m.venue.split(',')[0]}
 </div>
           <div style="display:flex;align-items:center;gap:8px;">
             <button onclick="openCommentPopup('${key}','${m.home} vs ${m.away}')" style="position:relative; font-size:11px;background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--muted);padding:4px 9px;border-radius:7px;cursor:pointer;font-family:var(--font-body);">
@@ -409,18 +409,31 @@ html += `
     <span class="team-flag" style="font-size:22px; font-family:'Twemoji Country Flags', sans-serif;">${aT?.flag||''}</span>
   </div>
 </div>
-        ${!locked ? `<div style="display:grid;grid-template-columns:1fr auto auto auto 1fr;align-items:center;justify-items:center;gap:8px;margin-bottom:10px;">
-              <div></div>
-              <input id="h_${key}" type="number" min="0" max="20" value="${pred?.hScore ?? ''}" placeholder="—"
-                style="width:56px;height:44px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-display);font-size:24px;text-align:center;outline:none">
-              <span style="font-family:var(--font-display);font-size:20px;color:var(--muted);padding:0 4px">—</span>
-              <input id="a_${key}" type="number" min="0" max="20" value="${pred?.aScore ?? ''}" placeholder="—"
-                style="width:56px;height:44px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-display);font-size:24px;text-align:center;outline:none">
-              <div style="display:flex;justify-content:flex-start;">
-                <button onclick="saveAllPredictions()"
-                  style="background:rgba(0,198,122,0.15);border:1px solid var(--border2);color:var(--green);font-size:13px;padding:8px 18px;border-radius:8px;cursor:pointer;font-family:var(--font-body);font-weight:500;white-space:nowrap">
-                  ${pred ? 'Güncelle' : 'Kaydet'}
-                </button>
+        ${!locked ? `<div style="margin-bottom:10px;">
+              <div style="display:grid;grid-template-columns:1fr auto auto auto 1fr;align-items:center;justify-items:center;gap:8px;margin-bottom:8px;">
+                <div></div>
+                <input id="h_${key}" type="number" min="0" max="20" value="${pred?.hScore ?? ''}" placeholder="—"
+                  oninput="checkPenaltyRow('${key}','${m.home}','${m.away}','${m.stage||''}')"
+                  style="width:56px;height:44px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-display);font-size:24px;text-align:center;outline:none">
+                <span style="font-family:var(--font-display);font-size:20px;color:var(--muted);padding:0 4px">—</span>
+                <input id="a_${key}" type="number" min="0" max="20" value="${pred?.aScore ?? ''}" placeholder="—"
+                  oninput="checkPenaltyRow('${key}','${m.home}','${m.away}','${m.stage||''}')"
+                  style="width:56px;height:44px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-display);font-size:24px;text-align:center;outline:none">
+                <div style="display:flex;justify-content:flex-start;">
+                  <button onclick="saveAllPredictions()"
+                    style="background:rgba(0,198,122,0.15);border:1px solid var(--border2);color:var(--green);font-size:13px;padding:8px 18px;border-radius:8px;cursor:pointer;font-family:var(--font-body);font-weight:500;white-space:nowrap">
+                    ${pred ? 'Güncelle' : 'Kaydet'}
+                  </button>
+                </div>
+              </div>
+              <div id="pen_${key}" style="display:${(m.stage && m.stage !== 'group' && pred?.hScore !== undefined && pred?.aScore !== undefined && parseInt(pred.hScore) === parseInt(pred.aScore)) ? 'flex' : 'none'};align-items:center;gap:8px;padding:8px 10px;background:rgba(245,200,66,0.06);border:1px solid rgba(245,200,66,0.2);border-radius:8px;animation:fadeIn 0.2s ease;">
+                <span style="font-size:11px;color:var(--gold);white-space:nowrap;">🥅 Turu kim geçer?</span>
+                <select id="pen_sel_${key}" style="flex:1;background:var(--bg);border:1px solid rgba(245,200,66,0.3);border-radius:6px;color:var(--text);font-family:var(--font-body);font-size:13px;padding:6px 10px;outline:none;cursor:pointer;">
+                  <option value="">— Seç —</option>
+                  <option value="${m.home}" ${pred?.penaltyWinner===m.home?'selected':''}>${hT?.flag||''} ${m.home}</option>
+                  <option value="${m.away}" ${pred?.penaltyWinner===m.away?'selected':''}>${aT?.flag||''} ${m.away}</option>
+                </select>
+                <span style="font-size:10px;color:var(--muted);">+2p×çarpan</span>
               </div>
             </div>` : ''}
         ${(() => {
@@ -439,7 +452,7 @@ html += `
 
   const rowPts =
     (locked && result?.hScore !== undefined)
-      ? calcPoints(p.hScore, p.aScore, result.hScore, result.aScore)
+      ? calcPoints(p.hScore, p.aScore, result.hScore, result.aScore, m.stage || 'group', p.penaltyWinner, result.penaltyWinner)
       : null;
 
   const ptsColor =
@@ -520,7 +533,7 @@ html += `
         const key = matchKey(m);
         const result = matchResults[key];
         const pred = myPredictions[key];
-        const pts = pred && result ? calcPoints(pred.hScore, pred.aScore, result.hScore, result.aScore) : null;
+        const pts = pred && result ? calcPoints(pred.hScore, pred.aScore, result.hScore, result.aScore, m.stage || 'group', pred.penaltyWinner, result.penaltyWinner) : null;
         const hT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.home);
         const aT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.away);
         const predCount = Object.values(allPredictions).filter(p => p[key]).length;
@@ -531,7 +544,7 @@ html += `
           const u = users[uid];
           if (!u) return null;
           const isMe = uid === currentUser.uid;
-          const rowPts = result ? calcPoints(p.hScore, p.aScore, result.hScore, result.aScore) : null;
+          const rowPts = result ? calcPoints(p.hScore, p.aScore, result.hScore, result.aScore, m.stage || 'group', p.penaltyWinner, result.penaltyWinner) : null;
           const ptsColor = rowPts === 10 ? 'var(--green)' : rowPts === 8 ? '#7ec8e3' : rowPts === 6 ? 'var(--gold)' : rowPts === 2 ? '#aaa' : '#666';
           return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
             <span style="font-size:12px;flex:1;color:${isMe?'var(--green)':'var(--muted)'};font-weight:${isMe?500:400}">${u.displayName}${isMe?' (sen)':''}</span>
@@ -593,6 +606,11 @@ const STAGE_MULTIPLIERS = {
   final: 5
 };
 
+function getStageFromKey(key) {
+  const m = GROUP_STAGE_FIXTURES.find(f => matchKey(f) === key);
+  return m?.stage || 'group';
+}
+
 window.commentCounts = {};
 
 window.updateCommentCounts = async function(matches) {
@@ -623,13 +641,19 @@ function applyCommentBadge(key, count) {
   }
 }
 
-function calcPoints(pH, pA, rH, rA, stage) {
+function calcPoints(pH, pA, rH, rA, stage, predPenWinner, realPenWinner) {
   pH = parseInt(pH); pA = parseInt(pA);
   rH = parseInt(rH); rA = parseInt(rA);
   if (isNaN(pH)||isNaN(pA)||isNaN(rH)||isNaN(rA)) return 0;
   const m = STAGE_MULTIPLIERS[stage] || 1;
 
-  if (pH === rH && pA === rA) return Math.round(10 * m);
+  if (pH === rH && pA === rA) {
+    let pts = Math.round(10 * m);
+    if (pH === pA && predPenWinner && realPenWinner && predPenWinner === realPenWinner) {
+      pts += Math.round(2 * m);
+    }
+    return pts;
+  }
 
   const predResult = pH > pA ? 'H' : pH < pA ? 'A' : 'D';
   const realResult = rH > rA ? 'H' : rH < rA ? 'A' : 'D';
@@ -637,7 +661,13 @@ function calcPoints(pH, pA, rH, rA, stage) {
   const goalDiff = Math.abs(pH - rH) + Math.abs(pA - rA);
 
   if (sameWinner && goalDiff === 1) return Math.round(8 * m);
-  if (sameWinner) return Math.round(6 * m);
+  if (sameWinner) {
+    let pts = Math.round(6 * m);
+    if (predResult === 'D' && realResult === 'D' && predPenWinner && realPenWinner && predPenWinner === realPenWinner) {
+      pts += Math.round(2 * m);
+    }
+    return pts;
+  }
   if (!sameWinner && goalDiff === 1) return Math.round(2 * m);
 
   return 0;
@@ -812,6 +842,22 @@ window.saveChampionResult = async function() {
   }
 };
 
+window.checkPenaltyRow = function(key, home, away, stage) {
+  if (!stage || stage === 'group') return;
+  const h = parseInt(document.getElementById('h_' + key)?.value);
+  const a = parseInt(document.getElementById('a_' + key)?.value);
+  const row = document.getElementById('pen_' + key);
+  if (row) row.style.display = (!isNaN(h) && !isNaN(a) && h === a) ? 'flex' : 'none';
+};
+
+window.checkAdmPenalty = function(key, home, away, stage) {
+  if (!stage || stage === 'group') return;
+  const h = parseInt(document.getElementById('adm_h_' + key)?.value);
+  const a = parseInt(document.getElementById('adm_a_' + key)?.value);
+  const row = document.getElementById('adm_pen_row_' + key);
+  if (row) row.style.display = (!isNaN(h) && !isNaN(a) && h === a) ? 'flex' : 'none';
+};
+
 window.saveAllPredictions = async function() {
   if (!currentUser) return;
   const now = new Date();
@@ -831,14 +877,15 @@ window.saveAllPredictions = async function() {
     const match = GROUP_STAGE_FIXTURES.find(m => window.matchKey(m) === key);
     if (!match) continue;
     if (now >= new Date(match.datetime)) { skipped++; continue; }
+
+    const penSel = document.getElementById('pen_sel_' + key);
+    const penaltyWinner = (penSel && penSel.value) ? penSel.value : null;
+
     try {
       const docId = currentUser.uid + '__' + key;
-      await setDoc(doc(db, "predictions", docId), {
-        uid: currentUser.uid,
-        matchKey: key,
-        hScore, aScore,
-        updatedAt: serverTimestamp()
-      });
+      const data = { uid: currentUser.uid, matchKey: key, hScore, aScore, updatedAt: serverTimestamp() };
+      if (penaltyWinner) data.penaltyWinner = penaltyWinner;
+      await setDoc(doc(db, "predictions", docId), data);
       saved++;
     } catch(e) {
       console.error('Tahmin kaydedilemedi:', key, e);
@@ -868,31 +915,44 @@ function renderAdminPanel(matchResults) {
       const hT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.home);
       const aT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.away);
       
-      return `<div style="display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
-        <div style="font-size:13px">
-          <span style="font-family: 'Twemoji Country Flags', 'Segoe UI Emoji', sans-serif !important; font-size: 16px;">${hT?.flag||''}</span> 
-          ${m.home} vs ${m.away} 
-          <span style="font-family: 'Twemoji Country Flags', 'Segoe UI Emoji', sans-serif !important; font-size: 16px;">${aT?.flag||''}</span> 
-          <span style="color:var(--muted);font-size:11px">· ${m.date}</span>
+      return `<div style="padding:8px 0;border-bottom:1px solid var(--border);">
+        <div style="display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:10px;">
+          <div style="font-size:13px">
+            <span style="font-family: 'Twemoji Country Flags', 'Segoe UI Emoji', sans-serif !important; font-size: 16px;">${hT?.flag||''}</span> 
+            ${m.home} vs ${m.away} 
+            <span style="font-family: 'Twemoji Country Flags', 'Segoe UI Emoji', sans-serif !important; font-size: 16px;">${aT?.flag||''}</span> 
+            <span style="color:var(--muted);font-size:11px">· ${m.date}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input id="adm_h_${key}" type="number" min="0" max="20" value="${result?.hScore??''}" placeholder="—"
+              oninput="checkAdmPenalty('${key}','${m.home}','${m.away}','${m.stage||''}')"
+              style="width:44px;height:34px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-display);font-size:18px;text-align:center;outline:none">
+            <span style="color:var(--muted)">-</span>
+            <input id="adm_a_${key}" type="number" min="0" max="20" value="${result?.aScore??''}" placeholder="—"
+              oninput="checkAdmPenalty('${key}','${m.home}','${m.away}','${m.stage||''}')"
+              style="width:44px;height:34px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-display);font-size:18px;text-align:center;outline:none">
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button onclick="saveResult('${key}')"
+              style="background:rgba(245,200,66,0.1);border:1px solid rgba(245,200,66,0.3);color:var(--gold);font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;white-space:nowrap">
+              ${result?.hScore !== undefined ? '✓ Güncelle' : 'Kaydet'}
+            </button>
+            ${result?.hScore !== undefined ? `
+            <button onclick="deleteResult('${key}')" 
+              style="background:rgba(232,64,64,0.1); border:1px solid rgba(232,64,64,0.3); color:var(--red); font-size:12px; padding:6px 12px; border-radius:6px; cursor:pointer;">
+              Sil
+            </button>` : ''}
+          </div>
         </div>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <input id="adm_h_${key}" type="number" min="0" max="20" value="${result?.hScore??''}" placeholder="—"
-            style="width:44px;height:34px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-display);font-size:18px;text-align:center;outline:none">
-          <span style="color:var(--muted)">-</span>
-          <input id="adm_a_${key}" type="number" min="0" max="20" value="${result?.aScore??''}" placeholder="—"
-            style="width:44px;height:34px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--font-display);font-size:18px;text-align:center;outline:none">
-        </div>
-        <div style="display:flex; gap:6px;">
-          <button onclick="saveResult('${key}')"
-            style="background:rgba(245,200,66,0.1);border:1px solid rgba(245,200,66,0.3);color:var(--gold);font-size:12px;padding:6px 12px;border-radius:6px;cursor:pointer;white-space:nowrap">
-            ${result?.hScore !== undefined ? '✓ Güncelle' : 'Kaydet'}
-          </button>
-          ${result?.hScore !== undefined ? `
-          <button onclick="deleteResult('${key}')" 
-            style="background:rgba(232,64,64,0.1); border:1px solid rgba(232,64,64,0.3); color:var(--red); font-size:12px; padding:6px 12px; border-radius:6px; cursor:pointer;">
-            Sil
-          </button>` : ''}
-        </div>
+        ${m.stage && m.stage !== 'group' ? `
+        <div id="adm_pen_row_${key}" style="display:${(result?.hScore !== undefined && result.hScore === result.aScore) ? 'flex' : 'none'};align-items:center;gap:8px;margin-top:8px;padding:6px 10px;background:rgba(245,200,66,0.06);border:1px solid rgba(245,200,66,0.2);border-radius:6px;">
+          <span style="font-size:11px;color:var(--gold);">🥅 Turu geçen:</span>
+          <select id="adm_pen_${key}" style="flex:1;background:var(--bg);border:1px solid rgba(245,200,66,0.3);border-radius:6px;color:var(--text);font-family:var(--font-body);font-size:12px;padding:5px 8px;outline:none;">
+            <option value="">— Seç —</option>
+            <option value="${m.home}" ${result?.penaltyWinner===m.home?'selected':''}>${hT?.flag||''} ${m.home}</option>
+            <option value="${m.away}" ${result?.penaltyWinner===m.away?'selected':''}>${aT?.flag||''} ${m.away}</option>
+          </select>
+        </div>` : ''}
       </div>`;
     }).join('')}
     </div>
@@ -936,9 +996,13 @@ window.saveResult = async function(key) {
   const hScore = parseInt(hInput.value);
   const aScore = parseInt(aInput.value);
   if (isNaN(hScore) || isNaN(aScore)) { showToast('Geçerli skor gir!'); return; }
+  const penSel = document.getElementById('adm_pen_' + key);
+  const penaltyWinner = (penSel && penSel.value) ? penSel.value : null;
   try {
-    await setDoc(doc(db, "matchResults", key), { hScore, aScore, updatedAt: serverTimestamp() });
-    window.liveResults[key] = { hScore, aScore };
+    const data = { hScore, aScore, updatedAt: serverTimestamp() };
+    if (penaltyWinner) data.penaltyWinner = penaltyWinner;
+    await setDoc(doc(db, "matchResults", key), data);
+    window.liveResults[key] = { hScore, aScore, ...(penaltyWinner && { penaltyWinner }) };
     showToast('Sonuç kaydedildi! ✓');
     if (typeof window.renderFixture === 'function') window.renderFixture();
     if (typeof window.renderGroups === 'function') window.renderGroups();
@@ -1056,100 +1120,7 @@ window.showSection = function(id) {
     else renderAuthForms();
   }
 };
-// --- ANKET (POLL) FONKSİYONLARI BAŞLANGICI ---
-window.renderPoll = async function() {
-  const pollSec = document.getElementById('poll-section');
-  if (!pollSec) return;
 
-  // Anketi her durumda görünür yap
-  pollSec.style.display = 'block';
-
-  // Giriş yapmamış kullanıcıya sadece bilgi mesajı göster
-  if (!currentUser) {
-    document.getElementById('poll-actions').style.display = 'none';
-    document.getElementById('poll-results').style.display = 'block';
-    document.getElementById('poll-results').innerHTML = '<div style="color:var(--gold); font-size:13px; text-align:center; padding:10px; background:rgba(255,255,255,0.05); border-radius:8px;">⚠️ Oy kullanmak ve sonuçları görmek için lütfen sisteme giriş yapın.</div>';
-    return;
-  }
-
-  try {
-    // Giriş yapmış kullanıcının oy verip vermediğini Firestore'dan kontrol et
-    const voteDoc = await getDoc(doc(db, "polls", currentUser.uid));
-    
-    if (voteDoc.exists()) {
-      document.getElementById('poll-actions').style.display = 'none';
-      window.showPollResults();
-    } else {
-      document.getElementById('poll-actions').style.display = 'flex';
-      document.getElementById('poll-results').style.display = 'none';
-    }
-  } catch (e) {
-    console.error("Anket verisi kontrol edilirken hata oluştu:", e);
-  }
-};
-
-window.submitPollVote = async function(vote) {
-  if (!currentUser) return;
-  
-  if (!confirm('Oyunu kullandıktan sonra değiştiremezsin. Onaylıyor musun?')) return;
-
-  try {
-    await setDoc(doc(db, "polls", currentUser.uid), {
-      vote: vote,
-      timestamp: serverTimestamp()
-    });
-    // Varsa senin toast fonksiyonunu kullanır, yoksa alert de verebilirsin
-    if(typeof showToast === 'function') showToast('Oyunuz başarıyla kaydedildi!');
-    else alert('Oyunuz başarıyla kaydedildi!');
-    
-    document.getElementById('poll-actions').style.display = 'none';
-    window.showPollResults();
-  } catch (e) {
-    if(typeof showToast === 'function') showToast('Oy kullanılırken hata: ' + e.message);
-    else alert('Oy kullanılırken hata: ' + e.message);
-  }
-};
-
-window.showPollResults = async function() {
-  const resDiv = document.getElementById('poll-results');
-  resDiv.style.display = 'block';
-  resDiv.innerHTML = '<div style="color:var(--muted); font-size:12px;">Güncel sonuçlar hesaplanıyor...</div>';
-
-  try {
-    const snap = await getDocs(collection(db, "polls"));
-    let yesCount = 0;
-    let noCount = 0;
-    
-    snap.forEach(d => {
-      if (d.data().vote === 'yes') yesCount++;
-      else if (d.data().vote === 'no') noCount++;
-    });
-
-    const total = yesCount + noCount;
-    const yesPct = total === 0 ? 0 : Math.round((yesCount / total) * 100);
-    const noPct = total === 0 ? 0 : Math.round((noCount / total) * 100);
-
-    resDiv.innerHTML = `
-      <div style="font-size:12px; color:var(--text); margin-bottom:8px;"><strong>Teşekkürler, oyunuz kaydedildi.</strong> (Toplam Oy: ${total})</div>
-      <div style="margin-bottom:12px;">
-        <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--green); margin-bottom:4px;"><span>Evet, uygulansın</span><span>%${yesPct} (${yesCount} Oy)</span></div>
-        <div style="background:rgba(255,255,255,0.05); height:8px; border-radius:4px; overflow:hidden;">
-          <div style="background:var(--green); width:${yesPct}%; height:100%;"></div>
-        </div>
-      </div>
-      <div>
-        <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--red); margin-bottom:4px;"><span>Hayır, mevcut kurallar</span><span>%${noPct} (${noCount} Oy)</span></div>
-        <div style="background:rgba(255,255,255,0.05); height:8px; border-radius:4px; overflow:hidden;">
-          <div style="background:var(--red); width:${noPct}%; height:100%;"></div>
-        </div>
-      </div>
-    `;
-  } catch(e) {
-    resDiv.innerHTML = '<div style="color:var(--red); font-size:12px;">Sonuçlar yüklenemedi.</div>';
-    console.error(e);
-  }
-};
-// --- ANKET FONKSİYONLARI SONU ---
 </script>
 <style>
 
@@ -1570,25 +1541,6 @@ window.showPollResults = async function() {
 </nav>
 <main>
   <div id="sec-home" class="section active">
-<div id="poll-section" style="display:none; background:var(--card); border:1px solid var(--border2); border-radius:16px; padding:24px; margin-bottom:28px;">
-      <div style="font-family:var(--font-display); font-size:24px; letter-spacing:2px; color:var(--gold); margin-bottom:12px;">📊 SİSTEM GÜNCELLEMESİ OYLAMASI</div>
-      <div style="font-size:13px; color:var(--muted); line-height:1.6; margin-bottom:20px; background:rgba(255,255,255,0.02); padding:16px; border-radius:10px; border:1px solid var(--border);">
-        <p style="margin-bottom:10px;">Değerli katılımcılar,</p>
-        <p style="margin-bottom:10px;">Eleme turlarında maçların normal süresi berabere bitse dahi uzatmalar/penaltılarla bir takım tur atlamaktadır. Bu duruma özel yeni bir mekanik oylamaya sunulmuştur:</p>
-        <ul style="margin-left:20px; margin-bottom:10px; color:var(--text);">
-          <li style="margin-bottom:6px;">Skoru <strong>berabere</strong> tahmin edenler için <strong>"Turu Kim Geçer?"</strong> seçeneği açılacaktır.</li>
-          <li style="margin-bottom:6px;">Bunu doğru bilenler, beraberlik puanına ek olarak <strong>+2 Puan × Tur Çarpanı</strong> kazanacaktır.</li>
-          <li>Taraf bahsi yapanlar için bu seçenek kapalı kalacaktır.</li>
-        </ul>
-        <p>Bu kuralın uygulanmasını onaylıyor musunuz?</p>
-      </div>
-      
-      <div id="poll-actions" style="display:flex; gap:12px;">
-        <button onclick="submitPollVote('yes')" style="flex:1; background:rgba(0,198,122,0.1); border:1px solid var(--border2); color:var(--green); font-size:14px; font-weight:600; padding:12px; border-radius:8px; cursor:pointer;">Evet, uygulansın</button>
-        <button onclick="submitPollVote('no')" style="flex:1; background:rgba(232,64,64,0.1); border:1px solid rgba(232,64,64,0.3); color:var(--red); font-size:14px; font-weight:600; padding:12px; border-radius:8px; cursor:pointer;">Hayır, mevcut kurallar</button>
-      </div>
-      <div id="poll-results" style="display:none; margin-top:16px;"></div>
-    </div>
     <div class="hero">
       <h1>DÜNYA <span>KUPASI</span> İZLEME REHBERİ</h1>
       <p>48 takım, 104 maç ve tek bir şampiyonluk yolu. Ülkelerin geniş kadrolarını detaylıca incele, fikstürdeki eşleşmeleri analiz et ve kendi "ideal 11"ini kurarak turnuvanın nabzını tut.</p>
@@ -3144,7 +3096,24 @@ const GROUP_STAGE_FIXTURES = [
   {group:'K',date:'28 Haz',home:'Kongo'    ,     away:'Özbekistan',   venue:'Mercedes-Benz Stadium, ATL', datetime:'2026-06-28T02:30:00'},
   {group:'K',date:'28 Haz',home:'Kolombiya',    away:'Portekiz',     venue:'MetLife Stadium, NJ', datetime:'2026-06-28T02:30:00'},
   {group:'J',date:'28 Haz',home:'Cezayir',      away:'Avusturya',    venue:'Gillette Stadium, BOS', datetime:'2026-06-28T05:00:00'},
-  {group:'J',date:'28 Haz',home:'Ürdün',        away:'Arjantin',     venue:'Hard Rock Stadium, MIA', datetime:'2026-06-28T05:00:00'}
+  {group:'J',date:'28 Haz',home:'Ürdün',        away:'Arjantin',     venue:'Hard Rock Stadium, MIA', datetime:'2026-06-28T05:00:00'},
+
+  {group:'R32',date:'28 Haz',home:'Güney Afrika',   away:'Kanada',        venue:'SoFi Stadium, LA',              datetime:'2026-06-28T19:00:00Z',stage:'r32'},
+  {group:'R32',date:'29 Haz',home:'Brezilya',       away:'Japonya',       venue:'NRG Stadium, HOU',              datetime:'2026-06-29T17:00:00Z',stage:'r32'},
+  {group:'R32',date:'29 Haz',home:'Almanya',        away:'3rd-CDF',       venue:'Gillette Stadium, BOS',         datetime:'2026-06-29T20:30:00Z',stage:'r32'},
+  {group:'R32',date:'30 Haz',home:'Hollanda',       away:'Fas',           venue:'Estadio BBVA, GDL',             datetime:'2026-06-30T01:00:00Z',stage:'r32'},
+  {group:'R32',date:'30 Haz',home:'Fildişi Sahili', away:'2nd-I',         venue:'AT&T Stadium, DAL',             datetime:'2026-06-30T17:00:00Z',stage:'r32'},
+  {group:'R32',date:'30 Haz',home:'1st-I',          away:'3rd-DFG',       venue:'MetLife Stadium, NJ',           datetime:'2026-06-30T21:00:00Z',stage:'r32'},
+  {group:'R32',date:'1 Tem', home:'Meksika',        away:'3rd-CEH',       venue:'Estadio Azteca, MXC',           datetime:'2026-07-01T01:00:00Z',stage:'r32'},
+  {group:'R32',date:'1 Tem', home:'1st-L',          away:'3rd-EIJK',      venue:'Mercedes-Benz Stadium, ATL',    datetime:'2026-07-01T16:00:00Z',stage:'r32'},
+  {group:'R32',date:'1 Tem', home:'1st-G',          away:'3rd-AHIJ',      venue:'Lumen Field, SEA',              datetime:'2026-07-01T20:00:00Z',stage:'r32'},
+  {group:'R32',date:'2 Tem', home:'ABD',            away:'Bosna-Hersek',  venue:"Levi's Stadium, SFO",           datetime:'2026-07-02T00:00:00Z',stage:'r32'},
+  {group:'R32',date:'2 Tem', home:'1st-H',          away:'2nd-J',         venue:'SoFi Stadium, LA',              datetime:'2026-07-02T19:00:00Z',stage:'r32'},
+  {group:'R32',date:'3 Tem', home:'2nd-K',          away:'2nd-L',         venue:'BMO Field, TOR',                datetime:'2026-07-02T23:00:00Z',stage:'r32'},
+  {group:'R32',date:'3 Tem', home:'İsviçre',        away:'3rd-EFGIJ',     venue:'BC Place, VAN',                 datetime:'2026-07-03T03:00:00Z',stage:'r32'},
+  {group:'R32',date:'3 Tem', home:'Avustralya',     away:'2nd-G',         venue:'AT&T Stadium, DAL',             datetime:'2026-07-03T18:00:00Z',stage:'r32'},
+  {group:'R32',date:'4 Tem', home:'Arjantin',       away:'2nd-H',         venue:'Hard Rock Stadium, MIA',        datetime:'2026-07-03T22:00:00Z',stage:'r32'},
+  {group:'R32',date:'4 Tem', home:'1st-K',          away:'3rd-DEIJL',     venue:'Arrowhead Stadium, KC',         datetime:'2026-07-04T01:30:00Z',stage:'r32'}
 ];
 const RATING_LABELS = {0:'',1:'Kötü',2:'Ortalama',3:'İyi',4:'Mükemmel',5:'Dünya Sınıfı'};
 
@@ -3175,10 +3144,7 @@ function showSection(id){
   const bnavId = bnavMap[id];
   if(bnavId) { const btn = document.getElementById(bnavId); if(btn) btn.classList.add('active'); }
 
-  if(id==='home') {
-    renderHomeLB();
-    if (typeof window.renderPoll === 'function') window.renderPoll();
-  }
+  if(id==='home') renderHomeLB();
   window.scrollTo(0,0);
 }
 
@@ -3507,7 +3473,7 @@ function renderFixture(){
             <span class="tname">${match.away}</span>
             ${aRatingHtml}
         </div>
-        <div class="fixture-meta">Grup ${match.group}<br><span style="font-size:11px;color:var(--text)">${match.datetime ? formatDateTime(match.datetime) : match.date}</span><br><span style="font-size:10px">${match.venue.split(',')[0]}</span></div>
+        <div class="fixture-meta">${match.stage ? {r32:'Son 32',r16:'Son 16',qf:'Çeyrek',sf:'Yarı',third:'3.lük',final:'Final'}[match.stage]||match.group : 'Grup '+match.group}<br><span style="font-size:11px;color:var(--text)">${match.datetime ? formatDateTime(match.datetime) : match.date}</span><br><span style="font-size:10px">${match.venue.split(',')[0]}</span></div>
       </div>`;
     });
   });
