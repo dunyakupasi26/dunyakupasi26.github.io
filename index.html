@@ -370,6 +370,7 @@ html += `
       const aT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.away);
       const timeLeft = !locked ? formatTimeLeft(kickoff - now) : '';
       const isLive = locked && now.getTime() < kickoff.getTime() + TWO_HOURS_MS;
+      const isPlaceholder = /^(1st|2nd|3rd)-/.test(m.home) || /^(1st|2nd|3rd)-/.test(m.away);
 
       return `<div style="border:1px solid ${isLive?'rgba(245,200,66,0.3)':locked?'var(--border)':'var(--border2)'};border-radius:12px;padding:16px;margin-bottom:12px;background:${isLive?'rgba(245,200,66,0.04)':locked?'rgba(255,255,255,0.02)':'rgba(0,198,122,0.03)'};${isLive?'box-shadow:0 0 0 1px rgba(245,200,66,0.08);':''}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -409,7 +410,10 @@ html += `
     <span class="team-flag" style="font-size:22px; font-family:'Twemoji Country Flags', sans-serif;">${aT?.flag||''}</span>
   </div>
 </div>
-        ${!locked ? `<div style="margin-bottom:10px;">
+        ${!locked ? (isPlaceholder ? `
+              <div style="text-align:center;padding:10px 0;font-size:12px;color:var(--muted);background:rgba(255,255,255,0.02);border-radius:8px;border:1px dashed rgba(255,255,255,0.08);">
+                ⏳ Eşleşme henüz belli değil — grup aşaması tamamlanınca tahmin girişi açılacak
+              </div>` : `<div style="margin-bottom:10px;">
               <div style="display:grid;grid-template-columns:1fr auto auto auto 1fr;align-items:center;justify-items:center;gap:8px;margin-bottom:8px;">
                 <div></div>
                 <input id="h_${key}" type="number" min="0" max="20" value="${pred?.hScore ?? ''}" placeholder="—"
@@ -435,7 +439,7 @@ html += `
                 </select>
                 <span style="font-size:10px;color:var(--muted);">+2p×çarpan</span>
               </div>
-            </div>` : ''}
+            </div>`) : ''}
         ${(() => {
           const result = matchResults[key];
           const totalPreds = Object.values(allPredictions).filter(preds => preds[key]).length;
@@ -3105,13 +3109,13 @@ const GROUP_STAGE_FIXTURES = [
   {group:'R32',date:'30 Haz',home:'Fransa',         away:'3rd-DFG',        venue:'MetLife Stadium, NJ',           datetime:'2026-06-30T21:00:00Z',stage:'r32'},
   {group:'R32',date:'1 Tem', home:'Meksika',        away:'3rd-CEH',        venue:'Estadio Azteca, MXC',           datetime:'2026-07-01T01:00:00Z',stage:'r32'},
   {group:'R32',date:'1 Tem', home:"L Grubu 1.'si",  away:'3rd-EIJK',       venue:'Mercedes-Benz Stadium, ATL',    datetime:'2026-07-01T16:00:00Z',stage:'r32'},
-  {group:'R32',date:'1 Tem', home:"G Grubu 1.'si",  away:'3rd-AHIJ',       venue:'Lumen Field, SEA',              datetime:'2026-07-01T20:00:00Z',stage:'r32'},
+  {group:'R32',date:'1 Tem', home:"Belçika",  away:'3rd-AHIJ',       venue:'Lumen Field, SEA',              datetime:'2026-07-01T20:00:00Z',stage:'r32'},
   {group:'R32',date:'2 Tem', home:'ABD',            away:'Bosna-Hersek',   venue:"Levi's Stadium, SFO",           datetime:'2026-07-02T00:00:00Z',stage:'r32'},
-  {group:'R32',date:'2 Tem', home:"H Grubu 1.'si",  away:"J Grubu 2.'si",  venue:'SoFi Stadium, LA',              datetime:'2026-07-02T19:00:00Z',stage:'r32'},
+  {group:'R32',date:'2 Tem', home:"İspanya",  away:"J Grubu 2.'si",  venue:'SoFi Stadium, LA',              datetime:'2026-07-02T19:00:00Z',stage:'r32'},
   {group:'R32',date:'3 Tem', home:"K Grubu 2.'si",  away:"L Grubu 2.'si",  venue:'BMO Field, TOR',                datetime:'2026-07-02T23:00:00Z',stage:'r32'},
   {group:'R32',date:'3 Tem', home:'İsviçre',        away:'3rd-EFGIJ',      venue:'BC Place, VAN',                 datetime:'2026-07-03T03:00:00Z',stage:'r32'},
-  {group:'R32',date:'3 Tem', home:'Avustralya',     away:"G Grubu 2.'si",  venue:'AT&T Stadium, DAL',             datetime:'2026-07-03T18:00:00Z',stage:'r32'},
-  {group:'R32',date:'4 Tem', home:'Arjantin',       away:"H Grubu 2.'si",  venue:'Hard Rock Stadium, MIA',        datetime:'2026-07-03T22:00:00Z',stage:'r32'},
+  {group:'R32',date:'3 Tem', home:'Avustralya',     away:"Mısır",  venue:'AT&T Stadium, DAL',             datetime:'2026-07-03T18:00:00Z',stage:'r32'},
+  {group:'R32',date:'4 Tem', home:'Arjantin',       away:"Yeşil Burun",  venue:'Hard Rock Stadium, MIA',        datetime:'2026-07-03T22:00:00Z',stage:'r32'},
   {group:'R32',date:'4 Tem', home:"K Grubu 1.'si",  away:'3rd-DEIJL',      venue:'Arrowhead Stadium, KC',         datetime:'2026-07-04T01:30:00Z',stage:'r32'}
 ];
 
