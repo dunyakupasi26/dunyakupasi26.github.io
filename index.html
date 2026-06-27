@@ -370,7 +370,7 @@ html += `
       const aT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.away);
       const timeLeft = !locked ? formatTimeLeft(kickoff - now) : '';
       const isLive = locked && now.getTime() < kickoff.getTime() + TWO_HOURS_MS;
-      const isPlaceholder = /^(1st|2nd|3rd)-/.test(m.home) || /^(1st|2nd|3rd)-/.test(m.away);
+      const isPlaceholder = /^(1st|2nd|3rd)-|Grubu/.test(m.home) || /^(1st|2nd|3rd)-|Grubu/.test(m.away);
 
       return `<div style="border:1px solid ${isLive?'rgba(245,200,66,0.3)':locked?'var(--border)':'var(--border2)'};border-radius:12px;padding:16px;margin-bottom:12px;background:${isLive?'rgba(245,200,66,0.04)':locked?'rgba(255,255,255,0.02)':'rgba(0,198,122,0.03)'};${isLive?'box-shadow:0 0 0 1px rgba(245,200,66,0.08);':''}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
