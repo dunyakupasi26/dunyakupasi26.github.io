@@ -452,7 +452,7 @@ html += `
 
   const isMe = uid === currentUser.uid;
 
-  if (!locked) return null;
+  if (!locked && !isLive) return null;
 
   const rowPts =
     (locked && result?.hScore !== undefined)
@@ -460,6 +460,9 @@ html += `
       : null;
 
   const rowColor = ptsColor(rowPts, STAGE_MULTIPLIERS[m.stage || 'group'] || 1);
+  const isDrawPred = parseInt(p.hScore) === parseInt(p.aScore);
+  const hT2 = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.home);
+  const aT2 = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.away);
 
   return `
     <div style="
@@ -469,36 +472,19 @@ html += `
       padding:4px 0;
       border-bottom:1px solid rgba(255,255,255,0.04);
     ">
-      <span
-        style="
-          font-size:12px;
-          flex:1;
-          color:${isMe ? 'var(--green)' : 'var(--muted)'};
-          font-weight:${isMe ? '600' : '400'};
-        ">
+      <span style="font-size:12px;flex:1;color:${isMe ? 'var(--green)' : 'var(--muted)'};font-weight:${isMe ? '600' : '400'};">
         ${u.displayName}${isMe ? ' (sen)' : ''}
       </span>
-
-      <span style="
-        font-family:var(--font-display);
-        font-size:14px;
-        letter-spacing:1px;
-      ">
+      <span style="font-family:var(--font-display);font-size:14px;letter-spacing:1px;">
         ${p.hScore} — ${p.aScore}
       </span>
-
-      ${
-        rowPts !== null
-          ? `<span style="
-              font-family:var(--font-display);
-              font-size:13px;
-              color:${rowColor};
-              min-width:24px;
-              text-align:right
-            ">
-              ${rowPts}p
-            </span>`
-          : ''
+      ${isDrawPred && p.penaltyWinner && m.stage && m.stage !== 'group' ? `
+        <span style="font-size:11px;color:var(--muted);">→</span>
+        <span style="font-size:11px;color:var(--gold);">${p.penaltyWinner === m.home ? (hT2?.flag||'') : (aT2?.flag||'')} ${p.penaltyWinner}</span>
+      ` : ''}
+      ${rowPts !== null
+        ? `<span style="font-family:var(--font-display);font-size:13px;color:${rowColor};min-width:24px;text-align:right">${rowPts}p</span>`
+        : ''
       }
     </div>
   `;
@@ -545,9 +531,11 @@ html += `
           const isMe = uid === currentUser.uid;
           const rowPts = result ? calcPoints(p.hScore, p.aScore, result.hScore, result.aScore, m.stage || 'group', p.penaltyWinner, result.penaltyWinner) : null;
           const rowColor = ptsColor(rowPts, STAGE_MULTIPLIERS[m.stage || 'group'] || 1);
+          const isDrawPred = parseInt(p.hScore) === parseInt(p.aScore);
           return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
             <span style="font-size:12px;flex:1;color:${isMe?'var(--green)':'var(--muted)'};font-weight:${isMe?500:400}">${u.displayName}${isMe?' (sen)':''}</span>
             <span style="font-family:var(--font-display);font-size:14px;letter-spacing:1px">${p.hScore} — ${p.aScore}</span>
+            ${isDrawPred && p.penaltyWinner && m.stage && m.stage !== 'group' ? `<span style="font-size:11px;color:var(--muted)">→</span><span style="font-size:11px;color:var(--gold);">${p.penaltyWinner === m.home ? (hT?.flag||'') : (aT?.flag||'')} ${p.penaltyWinner}</span>` : ''}
             ${rowPts !== null ? `<span style="font-family:var(--font-display);font-size:13px;color:${rowColor};min-width:24px;text-align:right">${rowPts}p</span>` : ''}
           </div>`;
         }).filter(Boolean).join('');
