@@ -432,7 +432,7 @@ html += `
               </div>
               <div id="pen_${key}" style="display:${(m.stage && m.stage !== 'group' && pred?.hScore !== undefined && pred?.aScore !== undefined && parseInt(pred.hScore) === parseInt(pred.aScore)) ? 'flex' : 'none'};align-items:center;gap:8px;padding:8px 10px;background:rgba(245,200,66,0.06);border:1px solid rgba(245,200,66,0.2);border-radius:8px;animation:fadeIn 0.2s ease;">
                 <span style="font-size:11px;color:var(--gold);white-space:nowrap;">🥅 Turu kim geçer?</span>
-                <select id="pen_sel_${key}" style="flex:1;background:var(--bg);border:1px solid rgba(245,200,66,0.3);border-radius:6px;color:var(--text);font-family:var(--font-body);font-size:13px;padding:6px 10px;outline:none;cursor:pointer;">
+                <select id="pen_sel_${key}" style="flex:1;background:var(--bg);border:1px solid rgba(245,200,66,0.3);border-radius:6px;color:var(--text);font-family:'Twemoji Country Flags', 'Segoe UI Emoji', var(--font-body) !important;font-size:13px;padding:6px 10px;outline:none;cursor:pointer;">
                   <option value="">— Seç —</option>
                   <option value="${m.home}" ${pred?.penaltyWinner===m.home?'selected':''}>${hT?.flag||''} ${m.home}</option>
                   <option value="${m.away}" ${pred?.penaltyWinner===m.away?'selected':''}>${aT?.flag||''} ${m.away}</option>
@@ -479,9 +479,9 @@ html += `
         ${p.hScore} — ${p.aScore}
       </span>
       ${isDrawPred && p.penaltyWinner && m.stage && m.stage !== 'group' ? `
-        <span style="font-size:11px;color:var(--muted);">→</span>
-        <span style="font-size:11px;color:var(--gold);">${p.penaltyWinner === m.home ? (hT2?.flag||'') : (aT2?.flag||'')} ${p.penaltyWinner}</span>
-      ` : ''}
+  <span style="font-size:11px;color:var(--muted);">→</span>
+  <span style="font-size:11px;color:var(--gold);"><span class="team-flag">${p.penaltyWinner === m.home ? (hT2?.flag||'') : (aT2?.flag||'')}</span> ${p.penaltyWinner}</span>
+` : ''}
       ${rowPts !== null
         ? `<span style="font-family:var(--font-display);font-size:13px;color:${rowColor};min-width:24px;text-align:right">${rowPts}p</span>`
         : ''
@@ -535,7 +535,7 @@ html += `
           return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
             <span style="font-size:12px;flex:1;color:${isMe?'var(--green)':'var(--muted)'};font-weight:${isMe?500:400}">${u.displayName}${isMe?' (sen)':''}</span>
             <span style="font-family:var(--font-display);font-size:14px;letter-spacing:1px">${p.hScore} — ${p.aScore}</span>
-            ${isDrawPred && p.penaltyWinner && m.stage && m.stage !== 'group' ? `<span style="font-size:11px;color:var(--muted)">→</span><span style="font-size:11px;color:var(--gold);">${p.penaltyWinner === m.home ? (hT?.flag||'') : (aT?.flag||'')} ${p.penaltyWinner}</span>` : ''}
+            ${isDrawPred && p.penaltyWinner && m.stage && m.stage !== 'group' ? `<span style="font-size:11px;color:var(--muted)">→</span><span style="font-size:11px;color:var(--gold);"><span class="team-flag">${p.penaltyWinner === m.home ? (hT?.flag||'') : (aT?.flag||'')}</span> ${p.penaltyWinner}</span>` : ''}
             ${rowPts !== null ? `<span style="font-family:var(--font-display);font-size:13px;color:${rowColor};min-width:24px;text-align:right">${rowPts}p</span>` : ''}
           </div>`;
         }).filter(Boolean).join('');
@@ -943,7 +943,7 @@ function renderAdminPanel(matchResults) {
         ${m.stage && m.stage !== 'group' ? `
         <div id="adm_pen_row_${key}" style="display:${(result?.hScore !== undefined && result.hScore === result.aScore) ? 'flex' : 'none'};align-items:center;gap:8px;margin-top:8px;padding:6px 10px;background:rgba(245,200,66,0.06);border:1px solid rgba(245,200,66,0.2);border-radius:6px;">
           <span style="font-size:11px;color:var(--gold);">🥅 Turu geçen:</span>
-          <select id="adm_pen_${key}" style="flex:1;background:var(--bg);border:1px solid rgba(245,200,66,0.3);border-radius:6px;color:var(--text);font-family:var(--font-body);font-size:12px;padding:5px 8px;outline:none;">
+          <select id="adm_pen_${key}" style="flex:1;background:var(--bg);border:1px solid rgba(245,200,66,0.3);border-radius:6px;color:var(--text);font-family:'Twemoji Country Flags', 'Segoe UI Emoji', var(--font-body) !important;font-size:12px;padding:5px 8px;outline:none;">
             <option value="">— Seç —</option>
             <option value="${m.home}" ${result?.penaltyWinner===m.home?'selected':''}>${hT?.flag||''} ${m.home}</option>
             <option value="${m.away}" ${result?.penaltyWinner===m.away?'selected':''}>${aT?.flag||''} ${m.away}</option>
