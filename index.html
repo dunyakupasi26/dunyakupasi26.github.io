@@ -459,12 +459,7 @@ html += `
       ? calcPoints(p.hScore, p.aScore, result.hScore, result.aScore, m.stage || 'group', p.penaltyWinner, result.penaltyWinner)
       : null;
 
-  const ptsColor =
-    rowPts === 10 ? 'var(--green)' :
-    rowPts === 8 ? '#7ec8e3' :
-    rowPts === 6 ? 'var(--gold)' :
-    rowPts === 2 ? '#aaa' :
-    '#666';
+  const rowColor = ptsColor(rowPts, STAGE_MULTIPLIERS[m.stage || 'group'] || 1);
 
   return `
     <div style="
@@ -497,7 +492,7 @@ html += `
           ? `<span style="
               font-family:var(--font-display);
               font-size:13px;
-              color:${ptsColor};
+              color:${rowColor};
               min-width:24px;
               text-align:right
             ">
@@ -549,11 +544,11 @@ html += `
           if (!u) return null;
           const isMe = uid === currentUser.uid;
           const rowPts = result ? calcPoints(p.hScore, p.aScore, result.hScore, result.aScore, m.stage || 'group', p.penaltyWinner, result.penaltyWinner) : null;
-          const ptsColor = rowPts === 10 ? 'var(--green)' : rowPts === 8 ? '#7ec8e3' : rowPts === 6 ? 'var(--gold)' : rowPts === 2 ? '#aaa' : '#666';
+          const rowColor = ptsColor(rowPts, STAGE_MULTIPLIERS[m.stage || 'group'] || 1);
           return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
             <span style="font-size:12px;flex:1;color:${isMe?'var(--green)':'var(--muted)'};font-weight:${isMe?500:400}">${u.displayName}${isMe?' (sen)':''}</span>
             <span style="font-family:var(--font-display);font-size:14px;letter-spacing:1px">${p.hScore} — ${p.aScore}</span>
-            ${rowPts !== null ? `<span style="font-family:var(--font-display);font-size:13px;color:${ptsColor};min-width:24px;text-align:right">${rowPts}p</span>` : ''}
+            ${rowPts !== null ? `<span style="font-family:var(--font-display);font-size:13px;color:${rowColor};min-width:24px;text-align:right">${rowPts}p</span>` : ''}
           </div>`;
         }).filter(Boolean).join('');
 
@@ -571,7 +566,7 @@ html += `
               <span class="team-flag" style="font-family:'Twemoji Country Flags', sans-serif;">${aT?.flag||''}</span>
             </div>
             <div style="text-align:center;min-width:40px">
-              ${pts !== null ? `<div style="font-family:var(--font-display);font-size:20px;color:${pts>=8?'var(--green)':pts>=6?'var(--gold)':pts>=2?'var(--muted)':'#666'}">${pts}p</div>` : '<div style="font-size:11px;color:var(--muted)">—</div>'}
+              ${pts !== null ? `<div style="font-family:var(--font-display);font-size:20px;color:${ptsColor(pts, STAGE_MULTIPLIERS[m.stage||'group']||1)}">${pts}p</div>` : '<div style="font-size:11px;color:var(--muted)">—</div>'}
             </div>
           </div>
           ${allPredRowsHtml ? `
@@ -599,6 +594,15 @@ html += `
 
 const CHAMPION_LOCK = new Date('2026-06-18T16:00:00Z');
 const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+
+function ptsColor(pts, multiplier) {
+  const m = multiplier || 1;
+  if (pts >= Math.round(10 * m)) return 'var(--green)';
+  if (pts >= Math.round(8 * m))  return '#7ec8e3';
+  if (pts >= Math.round(6 * m))  return 'var(--gold)';
+  if (pts >= Math.round(2 * m))  return '#aaa';
+  return '#666';
+}
 
 const STAGE_MULTIPLIERS = {
   group: 1,
