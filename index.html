@@ -370,7 +370,7 @@ html += `
       const aT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.away);
       const timeLeft = !locked ? formatTimeLeft(kickoff - now) : '';
       const isLive = locked && now.getTime() < kickoff.getTime() + TWO_HOURS_MS;
-      const isPlaceholder = /^(1st|2nd|3rd)-|Grubu/.test(m.home) || /^(1st|2nd|3rd)-|Grubu/.test(m.away);
+      const isPlaceholder = /^(1st|2nd|3rd|Winner)-|Grubu|Galibi/.test(m.home) || /^(1st|2nd|3rd|Winner)-|Grubu|Galibi/.test(m.away);
 
       return `<div style="border:1px solid ${isLive?'rgba(245,200,66,0.3)':locked?'var(--border)':'var(--border2)'};border-radius:12px;padding:16px;margin-bottom:12px;background:${isLive?'rgba(245,200,66,0.04)':locked?'rgba(255,255,255,0.02)':'rgba(0,198,122,0.03)'};${isLive?'box-shadow:0 0 0 1px rgba(245,200,66,0.08);':''}">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -3108,7 +3108,16 @@ const GROUP_STAGE_FIXTURES = [
   {group:'R32',date:'3 Tem', home:'İsviçre',        away:'Cezayir',      venue:'BC Place, VAN',                 datetime:'2026-07-03T03:00:00Z',stage:'r32'},
   {group:'R32',date:'3 Tem', home:'Avustralya',     away:"Mısır",  venue:'AT&T Stadium, DAL',             datetime:'2026-07-03T18:00:00Z',stage:'r32'},
   {group:'R32',date:'4 Tem', home:'Arjantin',       away:"Yeşil Burun",  venue:'Hard Rock Stadium, MIA',        datetime:'2026-07-03T22:00:00Z',stage:'r32'},
-  {group:'R32',date:'4 Tem', home:"Kolombiya",  away:'Gana',      venue:'Arrowhead Stadium, KC',         datetime:'2026-07-04T01:30:00Z',stage:'r32'}
+  {group:'R32',date:'4 Tem', home:"Kolombiya",  away:'Gana',      venue:'Arrowhead Stadium, KC',         datetime:'2026-07-04T01:30:00Z',stage:'r32'},
+
+  {group:'R16',date:'4 Tem',home:'Kanada',       away:'Fas',         venue:'NRG Stadium, HOU',                    datetime:'2026-07-04T17:00:00Z',stage:'r16'},
+  {group:'R16',date:'5 Tem',home:'Paraguay',     away:'M77 Galibi (Fransa-İsveç)',  venue:'Lincoln Financial Field, PHI',        datetime:'2026-07-04T21:00:00Z',stage:'r16'},
+  {group:'R16',date:'5 Tem',home:'Brezilya',     away:'M78 Galibi (Fildişi Sahili-Norveç)',  venue:'MetLife Stadium, NJ',                 datetime:'2026-07-05T20:00:00Z',stage:'r16'},
+  {group:'R16',date:'6 Tem',home:'M79 Galibi (Meksika-Ekvador)',   away:'M80 Galibi (İngiltere-DR Kongo)',  venue:'Estadio Azteca, MXC',                 datetime:'2026-07-06T00:00:00Z',stage:'r16'},
+  {group:'R16',date:'6 Tem',home:'M83 Galibi (Portekiz-Hırvatistan)',   away:'M84 Galibi (İspanya-Avusturya)',  venue:'AT&T Stadium, DAL',                   datetime:'2026-07-06T19:00:00Z',stage:'r16'},
+  {group:'R16',date:'7 Tem',home:'M81 Galibi (ABD-Bosna Hersek)',   away:'M82 Galibi (Belçika-Senegal)',  venue:'Lumen Field, SEA',                    datetime:'2026-07-07T00:00:00Z',stage:'r16'},
+  {group:'R16',date:'7 Tem',home:'M86 Galibi (Arjantin-Yeşil Burun)',   away:'M88 Galibi (Avustralya-Mısır)',  venue:'Mercedes-Benz Stadium, ATL',          datetime:'2026-07-07T16:00:00Z',stage:'r16'},
+  {group:'R16',date:'7 Tem',home:'M85 Galibi (İsviçre-Cezayir)',   away:'M87 Galibi (Kolombiya-Gana)',  venue:'BC Place, VAN',                       datetime:'2026-07-07T20:00:00Z',stage:'r16'}
 ];
 
 const RATING_LABELS = {0:'',1:'Kötü',2:'Ortalama',3:'İyi',4:'Mükemmel',5:'Dünya Sınıfı'};
