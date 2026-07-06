@@ -342,9 +342,13 @@ html += `
               if (!u) return '';
               const isMe = uid === currentUser.uid;
               const correct = championResult && pick.team === championResult;
+              const isEliminated = ['Almanya', 'Brezilya', 'Portekiz'].includes(pick.team);
+              const teamStyle = isEliminated ? 'text-decoration: line-through; color: #555;' : '';
+              const flagOpacity = isEliminated ? 'opacity: 0.4;' : '';
+
               return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
                 <span style="font-size:12px;flex:1;color:${isMe?'var(--green)':'var(--muted)'};font-weight:${isMe?500:400}">${u.displayName}${isMe?' (sen)':''}</span>
-                <span style="font-size:13px"><span style="font-family: 'Twemoji Country Flags', 'Segoe UI Emoji', sans-serif !important;">${allTeamNames.find(t=>t.name===pick.team)?.flag||''}</span> ${pick.team}</span>
+                <span style="font-size:13px; ${teamStyle}"><span style="font-family: 'Twemoji Country Flags', 'Segoe UI Emoji', sans-serif !important; ${flagOpacity}">${allTeamNames.find(t=>t.name===pick.team)?.flag||''}</span> ${pick.team}</span>
                 ${championResult ? `<span style="font-family:var(--font-display);font-size:13px;color:${correct?'var(--green)':'#555'}">${correct?'+50p':'0p'}</span>` : ''}
               </div>`;
             }).join('')}
