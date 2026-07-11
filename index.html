@@ -1592,6 +1592,14 @@ window.showSection = function(id) {
   <div id="sec-groups" class="section">
     <div class="sec-header"><div class="sec-title">GRUPLAR</div></div>
     <div class="groups-grid" id="groups-grid"></div>
+
+    <!-- ELİMİNASYON BRACKET -->
+    <div style="margin-top:24px;">
+      <div style="font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--green);margin-bottom:16px;">⚔️ ELİMİNASYON AŞAMASI</div>
+      <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px;">
+        <div id="bracket-container" style="min-width:900px;"></div>
+      </div>
+    </div>
   </div>
   <div id="sec-team" class="section">
     <div class="sec-header">
@@ -3791,6 +3799,122 @@ window.renderHomeLB = renderHomeLB;
 renderGroups();
 renderFixture();
 renderHomeLB();
+
+function renderBracket() {
+  const el = document.getElementById('bracket-container');
+  if (!el) return;
+
+  const flags = {
+    'Almanya':'🇩🇪','Paraguay':'🇵🇾','Fransa':'🇫🇷','İsveç':'🇸🇪',
+    'Güney Afrika':'🇿🇦','Kanada':'🇨🇦','Hollanda':'🇳🇱','Fas':'🇲🇦',
+    'Portekiz':'🇵🇹','Hırvatistan':'🇭🇷','İspanya':'🇪🇸','Avusturya':'🇦🇹',
+    'ABD':'🇺🇸','Bosna-Hersek':'🇧🇦','Belçika':'🇧🇪','Senegal':'🇸🇳',
+    'Brezilya':'🇧🇷','Japonya':'🇯🇵','Fildişi Sahili':'🇨🇮','Norveç':'🇳🇴',
+    'Meksika':'🇲🇽','Ekvador':'🇪🇨','İngiltere':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','DR Kongo':'🇨🇩',
+    'Arjantin':'🇦🇷','Yeşil Burun':'🇨🇻','Avustralya':'🇦🇺','Mısır':'🇪🇬',
+    'İsviçre':'🇨🇭','Cezayir':'🇩🇿','Kolombiya':'🇨🇴','Gana':'🇬🇭',
+  };
+
+  const R32 = [
+    {home:'Almanya',hS:1,hP:3,away:'Paraguay',aS:1,aP:4,w:'Paraguay'},
+    {home:'Fransa',hS:3,away:'İsveç',aS:0,w:'Fransa'},
+    {home:'Güney Afrika',hS:0,away:'Kanada',aS:1,w:'Kanada'},
+    {home:'Hollanda',hS:1,hP:2,away:'Fas',aS:1,aP:3,w:'Fas'},
+    {home:'Portekiz',hS:2,away:'Hırvatistan',aS:1,w:'Portekiz'},
+    {home:'İspanya',hS:3,away:'Avusturya',aS:0,w:'İspanya'},
+    {home:'ABD',hS:2,away:'Bosna-Hersek',aS:0,w:'ABD'},
+    {home:'Belçika',hS:3,away:'Senegal',aS:2,w:'Belçika'},
+    {home:'Brezilya',hS:2,away:'Japonya',aS:1,w:'Brezilya'},
+    {home:'Fildişi Sahili',hS:1,away:'Norveç',aS:2,w:'Norveç'},
+    {home:'Meksika',hS:2,away:'Ekvador',aS:0,w:'Meksika'},
+    {home:'İngiltere',hS:2,away:'DR Kongo',aS:1,w:'İngiltere'},
+    {home:'Arjantin',hS:3,away:'Yeşil Burun',aS:2,w:'Arjantin'},
+    {home:'Avustralya',hS:1,hP:2,away:'Mısır',aS:1,aP:4,w:'Mısır'},
+    {home:'İsviçre',hS:2,away:'Cezayir',aS:0,w:'İsviçre'},
+    {home:'Kolombiya',hS:1,away:'Gana',aS:0,w:'Kolombiya'},
+  ];
+
+  const R16 = [
+    {home:'Paraguay',hS:0,away:'Fransa',aS:1,w:'Fransa'},
+    {home:'Kanada',hS:0,away:'Fas',aS:3,w:'Fas'},
+    {home:'Portekiz',hS:0,away:'İspanya',aS:1,w:'İspanya'},
+    {home:'ABD',hS:1,away:'Belçika',aS:4,w:'Belçika'},
+    {home:'Brezilya',hS:1,away:'Norveç',aS:2,w:'Norveç'},
+    {home:'Meksika',hS:2,away:'İngiltere',aS:3,w:'İngiltere'},
+    {home:'Arjantin',hS:3,away:'Mısır',aS:2,w:'Arjantin'},
+    {home:'İsviçre',hS:0,hP:4,away:'Kolombiya',aS:0,aP:3,w:'İsviçre'},
+  ];
+
+  const QF = [
+    {home:'Fransa',hS:2,away:'Fas',aS:0,w:'Fransa'},
+    {home:'İspanya',away:'Belçika',w:null},
+    {home:'Norveç',away:'İngiltere',w:null},
+    {home:'Arjantin',away:'İsviçre',w:null},
+  ];
+
+  const SF = [
+    {home:'Fransa',away:'İspanya',w:null},
+    {home:'? Galibi',away:'? Galibi',w:null},
+  ];
+
+  const FINAL = {home:'? Galibi',away:'? Galibi',w:null};
+
+  function score(m) {
+    if (m.hS === undefined) return '';
+    let s = m.hS + '–' + m.aS;
+    if (m.hP !== undefined) s += ' (' + m.hP + '–' + m.aP + 'p)';
+    return s;
+  }
+
+  function box(m, w) {
+    const fw = w || 140;
+    const f = n => flags[n] ? '<span style="font-family:\'Twemoji Country Flags\',sans-serif">' + flags[n] + '</span> ' : '';
+    const sc = score(m);
+    const row = (name, win) =>
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:3px 6px;border-radius:4px;margin-bottom:1px;background:' +
+      (win ? 'rgba(0,198,122,0.1)' : 'rgba(255,255,255,0.02)') + ';">' +
+      '<span style="font-size:10px;font-weight:' + (win ? 600 : 400) + ';color:' + (win ? 'var(--green)' : 'var(--text)') +
+      ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:' + (fw - 20) + 'px;">' +
+      f(name) + name + '</span></div>';
+    return '<div style="width:' + fw + 'px;flex-shrink:0;background:var(--card);border:1px solid ' +
+      (m.w ? 'var(--border)' : 'rgba(0,198,122,0.2)') +
+      ';border-radius:8px;padding:4px;">' +
+      row(m.home, m.w === m.home) +
+      row(m.away, m.w === m.away) +
+      (sc ? '<div style="text-align:center;font-size:9px;color:var(--muted);margin-top:2px;">' + sc + '</div>' : '') +
+      '</div>';
+  }
+
+  function col(matches, label, boxW) {
+    const gap = matches.length <= 2 ? 40 : matches.length <= 4 ? 16 : 8;
+    return '<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">' +
+      '<div style="font-family:var(--font-display);font-size:10px;letter-spacing:1px;color:var(--muted);margin-bottom:8px;">' + label + '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:' + gap + 'px;">' +
+      matches.map(m => box(m, boxW)).join('') +
+      '</div></div>';
+  }
+
+  const sep = '<div style="width:16px;flex-shrink:0;border-top:1px solid var(--border);align-self:center;"></div>';
+
+  el.innerHTML =
+    '<div style="display:inline-flex;align-items:center;gap:4px;padding:16px 8px;">' +
+    col(R32.slice(0,8), 'SON 32', 128) + sep +
+    col(R16.slice(0,4), 'SON 16', 128) + sep +
+    col(QF.slice(0,2), 'ÇEYREK', 128) + sep +
+    col(SF.slice(0,1), 'YARI', 128) + sep +
+    '<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">' +
+      '<div style="font-family:var(--font-display);font-size:10px;letter-spacing:1px;color:var(--gold);margin-bottom:8px;">🏆 FİNAL</div>' +
+      box(FINAL, 140) +
+    '</div>' + sep +
+    col(SF.slice(1,2), 'YARI', 128) + sep +
+    col(QF.slice(2,4), 'ÇEYREK', 128) + sep +
+    col(R16.slice(4,8), 'SON 16', 128) + sep +
+    col(R32.slice(8,16), 'SON 32', 128) +
+    '</div>';
+}
+
+window.renderBracket = renderBracket;
+renderBracket();
 </script>
 
 </body>
