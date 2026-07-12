@@ -3146,7 +3146,7 @@ const GROUP_STAGE_FIXTURES = [
   {group:'QF',date:'12 Tem',home:'Arjantin', away:'İsviçre', venue:'Arrowhead Stadium, KC', datetime:'2026-07-12T01:00:00Z',stage:'qf'},
 
   {group:'SF',date:'14 Tem',home:'Fransa',    away:'İspanya',   venue:'AT&T Stadium, DAL',          datetime:'2026-07-14T19:00:00Z',stage:'sf'},
-  {group:'SF',date:'15 Tem',home:'İngiltere', away:'M100 Galibi (Arjantin-İsviçre)',          venue:'Mercedes-Benz Stadium, ATL', datetime:'2026-07-15T19:00:00Z',stage:'sf'}
+  {group:'SF',date:'15 Tem',home:'İngiltere', away:'Arjantin',          venue:'Mercedes-Benz Stadium, ATL', datetime:'2026-07-15T19:00:00Z',stage:'sf'}
 ];
 
 const RATING_LABELS = {0:'',1:'Kötü',2:'Ortalama',3:'İyi',4:'Mükemmel',5:'Dünya Sınıfı'};
@@ -3858,12 +3858,12 @@ function renderBracket() {
     {home:'Fransa',hS:2,away:'Fas',aS:0,w:'Fransa'},
     {home:'İspanya',hS:2,away:'Belçika',aS:1,w:'İspanya'},
     {home:'Norveç',hS:1,hP:0,away:'İngiltere',aS:1,aP:1,w:'İngiltere'},
-    {home:'Arjantin',away:'İsviçre',w:null},
+    {home:'Arjantin',hS:1,hP:1,away:'İsviçre',aS:1,aP:0,w:'Arjantin'},
   ];
 
   const SF = [
     {home:'Fransa',away:'İspanya',w:null},
-    {home:'İngiltere',away:'? Galibi',w:null},
+    {home:'İngiltere',away:'Arjantin',w:null},
   ];
 
   const FINAL = {home:'? Galibi',away:'? Galibi',w:null};
