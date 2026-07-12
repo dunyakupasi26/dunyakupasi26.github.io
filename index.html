@@ -456,7 +456,7 @@ html += `
 
   const isMe = uid === currentUser.uid;
 
-  if (!locked && !isLive) return null;
+  if (!locked && !isLive && !isAdmin) return null;
 
   const rowPts =
     (locked && result?.hScore !== undefined)
@@ -494,6 +494,15 @@ html += `
   `;
 }).filter(Boolean).join('');
           if (!locked) {
+            if (isAdmin) {
+              if (!allRows) {
+                return `<div style="font-size:11px;color:var(--muted);padding:8px 0;text-align:center;">Henüz tahmin yok</div>`;
+              }
+              return `<div style="margin-top:12px;border-top:1px solid rgba(245,200,66,0.15);padding-top:8px;">
+                <div style="font-size:10px;color:var(--gold);margin-bottom:6px;text-transform:uppercase;">🔒 Admin Önizleme — maç henüz başlamadı</div>
+                ${allRows}
+              </div>`;
+            }
             return `<div style="font-size:12px;color:var(--muted);text-align:center;padding:12px 0;border-top:1px solid rgba(255,255,255,0.05);">
               📊 Bu maça şu ana kadar <strong>${totalPreds}</strong> kişi tahmin yaptı.
             </div>`;
@@ -3137,7 +3146,7 @@ const GROUP_STAGE_FIXTURES = [
   {group:'QF',date:'12 Tem',home:'Arjantin', away:'İsviçre', venue:'Arrowhead Stadium, KC', datetime:'2026-07-12T01:00:00Z',stage:'qf'},
 
   {group:'SF',date:'14 Tem',home:'Fransa',    away:'İspanya',   venue:'AT&T Stadium, DAL',          datetime:'2026-07-14T19:00:00Z',stage:'sf'},
-  {group:'SF',date:'15 Tem',home:'M99 Galibi (Norveç-İngiltere)', away:'M100 Galibi (Arjantin-İsviçre)',          venue:'Mercedes-Benz Stadium, ATL', datetime:'2026-07-15T19:00:00Z',stage:'sf'}
+  {group:'SF',date:'15 Tem',home:'İngiltere', away:'M100 Galibi (Arjantin-İsviçre)',          venue:'Mercedes-Benz Stadium, ATL', datetime:'2026-07-15T19:00:00Z',stage:'sf'}
 ];
 
 const RATING_LABELS = {0:'',1:'Kötü',2:'Ortalama',3:'İyi',4:'Mükemmel',5:'Dünya Sınıfı'};
@@ -3848,13 +3857,13 @@ function renderBracket() {
   const QF = [
     {home:'Fransa',hS:2,away:'Fas',aS:0,w:'Fransa'},
     {home:'İspanya',hS:2,away:'Belçika',aS:1,w:'İspanya'},
-    {home:'Norveç',away:'İngiltere',w:null},
+    {home:'Norveç',hS:1,hP:0,away:'İngiltere',aS:1,aP:1,w:'İngiltere'},
     {home:'Arjantin',away:'İsviçre',w:null},
   ];
 
   const SF = [
     {home:'Fransa',away:'İspanya',w:null},
-    {home:'? Galibi',away:'? Galibi',w:null},
+    {home:'İngiltere',away:'? Galibi',w:null},
   ];
 
   const FINAL = {home:'? Galibi',away:'? Galibi',w:null};
