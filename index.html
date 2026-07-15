@@ -342,7 +342,7 @@ html += `
               if (!u) return '';
               const isMe = uid === currentUser.uid;
               const correct = championResult && pick.team === championResult;
-              const isEliminated = ['Almanya', 'Brezilya', 'Portekiz'].includes(pick.team);
+              const isEliminated = ['Almanya', 'Fransa', 'Brezilya', 'Portekiz'].includes(pick.team);
               const teamStyle = isEliminated ? 'text-decoration: line-through; color: #555;' : '';
               const flagOpacity = isEliminated ? 'opacity: 0.4;' : '';
 
@@ -3862,11 +3862,11 @@ function renderBracket() {
   ];
 
   const SF = [
-    {home:'Fransa',away:'İspanya',w:null},
+    {home:'Fransa',hS:0,away:'İspanya',aS:2,w:'İspanya'},
     {home:'İngiltere',away:'Arjantin',w:null},
   ];
 
-  const FINAL = {home:'? Galibi',away:'? Galibi',w:null};
+  const FINAL = {home:'İspanya',away:'? Galibi',w:null};
 
   function score(m) {
     if (m.hS === undefined) return '';
