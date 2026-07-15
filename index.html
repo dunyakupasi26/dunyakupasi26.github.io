@@ -3165,8 +3165,8 @@ const GROUP_STAGE_FIXTURES = [
   {group:'SF',date:'14 Tem',home:'Fransa',    away:'İspanya',   venue:'AT&T Stadium, DAL',          datetime:'2026-07-14T19:00:00Z',stage:'sf'},
   {group:'SF',date:'15 Tem',home:'İngiltere', away:'Arjantin',          venue:'Mercedes-Benz Stadium, ATL', datetime:'2026-07-15T19:00:00Z',stage:'sf'},
 
-  {group:'3P',date:'18 Tem',home:'Fransa',   away:'İngiltere/Arjantin Kaybedeni', venue:'Hard Rock Stadium, MIA', datetime:'2026-07-18T21:00:00Z',stage:'third'},
-  {group:'F', date:'19 Tem',home:'İspanya',  away:'İngiltere/Arjantin Galibi',    venue:'MetLife Stadium, NJ',    datetime:'2026-07-19T19:00:00Z',stage:'final'}
+  {group:'3P',date:'18 Tem',home:'Fransa',   away:'İngiltere', venue:'Hard Rock Stadium, MIA', datetime:'2026-07-18T21:00:00Z',stage:'third'},
+  {group:'F', date:'19 Tem',home:'İspanya',  away:'Arjantin',    venue:'MetLife Stadium, NJ',    datetime:'2026-07-19T19:00:00Z',stage:'final'}
 ];
 
 const RATING_LABELS = {0:'',1:'Kötü',2:'Ortalama',3:'İyi',4:'Mükemmel',5:'Dünya Sınıfı'};
@@ -3883,7 +3883,7 @@ function renderBracket() {
 
   const SF = [
     {home:'Fransa',hS:0,away:'İspanya',aS:2,w:'İspanya'},
-    {home:'İngiltere'hS:1,away:'Arjantin',aS:2,w:'Arjantin'},
+    {home:'İngiltere',hS:1,away:'Arjantin',aS:2,w:'Arjantin'},
   ];
 
   const FINAL = {home:'İspanya',away:'Arjantin',w:null};
