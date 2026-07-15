@@ -374,9 +374,17 @@ html += `
       const aT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.away);
       const timeLeft = !locked ? formatTimeLeft(kickoff - now) : '';
       const isLive = locked && now.getTime() < kickoff.getTime() + TWO_HOURS_MS;
-      const isPlaceholder = /^(1st|2nd|3rd|Winner)-|Grubu|Galibi/.test(m.home) || /^(1st|2nd|3rd|Winner)-|Grubu|Galibi/.test(m.away);
+      const isPlaceholder = /^(1st|2nd|3rd|Winner)-|Grubu|Galibi|Kaybedeni/.test(m.home) || /^(1st|2nd|3rd|Winner)-|Grubu|Galibi|Kaybedeni/.test(m.away);
+      const isFinalStage = m.stage === 'final';
+      const isThirdStage = m.stage === 'third';
 
-      return `<div style="border:1px solid ${isLive?'rgba(245,200,66,0.3)':locked?'var(--border)':'var(--border2)'};border-radius:12px;padding:16px;margin-bottom:12px;background:${isLive?'rgba(245,200,66,0.04)':locked?'rgba(255,255,255,0.02)':'rgba(0,198,122,0.03)'};${isLive?'box-shadow:0 0 0 1px rgba(245,200,66,0.08);':''}">
+      const cardBorder = isFinalStage ? 'rgba(245,200,66,0.5)' : isThirdStage ? 'rgba(205,127,50,0.45)' : (isLive?'rgba(245,200,66,0.3)':locked?'var(--border)':'var(--border2)');
+      const cardBg = isFinalStage ? 'linear-gradient(150deg, rgba(245,200,66,0.14), rgba(245,200,66,0.02) 55%), var(--card)' : isThirdStage ? 'linear-gradient(150deg, rgba(205,127,50,0.13), rgba(205,127,50,0.02) 55%), var(--card)' : (isLive?'rgba(245,200,66,0.04)':locked?'rgba(255,255,255,0.02)':'rgba(0,198,122,0.03)');
+      const cardShadow = isFinalStage ? 'box-shadow:0 0 28px rgba(245,200,66,0.16), inset 0 0 0 1px rgba(245,200,66,0.1);' : isThirdStage ? 'box-shadow:0 0 20px rgba(205,127,50,0.13), inset 0 0 0 1px rgba(205,127,50,0.1);' : (isLive?'box-shadow:0 0 0 1px rgba(245,200,66,0.08);':'');
+
+      return `<div style="border:1px solid ${cardBorder};border-radius:14px;padding:16px;margin-bottom:12px;background:${cardBg};${cardShadow}overflow:hidden;position:relative;">
+        ${isFinalStage ? `<div style="margin:-16px -16px 14px;padding:9px;text-align:center;background:linear-gradient(90deg, rgba(245,200,66,0.02), rgba(245,200,66,0.28), rgba(245,200,66,0.02));border-bottom:1px solid rgba(245,200,66,0.35);font-family:var(--font-display);font-size:16px;letter-spacing:4px;color:var(--gold);text-shadow:0 0 12px rgba(245,200,66,0.5);">🏆 FİNAL 🏆</div>` : ''}
+        ${isThirdStage ? `<div style="margin:-16px -16px 14px;padding:9px;text-align:center;background:linear-gradient(90deg, rgba(205,127,50,0.02), rgba(205,127,50,0.26), rgba(205,127,50,0.02));border-bottom:1px solid rgba(205,127,50,0.35);font-family:var(--font-display);font-size:14px;letter-spacing:3px;color:#E0995C;text-shadow:0 0 10px rgba(205,127,50,0.4);">🥉 ÜÇÜNCÜLÜK MAÇI 🥉</div>` : ''}
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
           <div style="font-size:11px;color:var(--muted)">
   ${m.stage ? {r32:'Son 32',r16:'Son 16',qf:'Çeyrek Final',sf:'Yarı Final',third:'3.lük Maçı',final:'Final'}[m.stage]||m.group : 'Grup '+m.group} · ${formatDateTime(m.datetime)} · ${m.venue.split(',')[0]}
@@ -391,11 +399,14 @@ html += `
 </div>
           </div>
         </div>
+        ${isFinalStage || isThirdStage ? `<div style="text-align:center;margin-bottom:10px;">
+          <span style="display:inline-block;font-size:10px;font-weight:700;letter-spacing:1px;padding:3px 12px;border-radius:20px;background:${isFinalStage?'rgba(245,200,66,0.12)':'rgba(205,127,50,0.14)'};color:${isFinalStage?'var(--gold)':'#E0995C'};border:1px solid ${isFinalStage?'rgba(245,200,66,0.3)':'rgba(205,127,50,0.3)'};">⚡ ×${isFinalStage?5:4} PUAN ÇARPANI</span>
+        </div>` : ''}
         <div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;margin-bottom:14px;">
   
   <div style="display:flex;align-items:center;gap:8px">
     <span class="team-flag" style="font-size:22px; font-family:'Twemoji Country Flags', sans-serif;">${hT?.flag||''}</span>
-    <span style="font-size:14px;font-weight:600">${m.home}</span>
+    <span style="font-size:${isFinalStage||isThirdStage?'15px':'14px'};font-weight:${isFinalStage||isThirdStage?'700':'600'};${isFinalStage?'color:var(--gold);':isThirdStage?'color:#E0995C;':''}">${m.home}</span>
   </div>
 
   <div style="text-align:center;">
@@ -405,18 +416,18 @@ html += `
       </div>
       ${isLive ? `<div style="font-size:9px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-top:3px;">● Canlı</div>` : ''}
     ` : `
-      <span style="font-family:var(--font-display);font-size:17px;color:var(--muted);">VS</span>
+      <span style="font-family:var(--font-display);font-size:17px;color:${isFinalStage?'var(--gold)':isThirdStage?'#E0995C':'var(--muted)'};">VS</span>
     `}
   </div>
 
   <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
-    <span style="font-size:14px;font-weight:600">${m.away}</span>
+    <span style="font-size:${isFinalStage||isThirdStage?'15px':'14px'};font-weight:${isFinalStage||isThirdStage?'700':'600'};${isFinalStage?'color:var(--gold);':isThirdStage?'color:#E0995C;':''}">${m.away}</span>
     <span class="team-flag" style="font-size:22px; font-family:'Twemoji Country Flags', sans-serif;">${aT?.flag||''}</span>
   </div>
 </div>
         ${!locked ? (isPlaceholder ? `
               <div style="text-align:center;padding:10px 0;font-size:12px;color:var(--muted);background:rgba(255,255,255,0.02);border-radius:8px;border:1px dashed rgba(255,255,255,0.08);">
-                ⏳ Eşleşme henüz belli değil — grup aşaması tamamlanınca tahmin girişi açılacak
+                ⏳ Eşleşme henüz belli değil — ${(isFinalStage||isThirdStage) ? 'yarı final tamamlanınca' : 'grup aşaması tamamlanınca'} tahmin girişi açılacak
               </div>` : `<div style="margin-bottom:10px;">
               <div style="display:grid;grid-template-columns:1fr auto auto auto 1fr;align-items:center;justify-items:center;gap:8px;margin-bottom:8px;">
                 <div></div>
@@ -535,6 +546,10 @@ html += `
         const hT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.home);
         const aT = GROUPS.flatMap(g=>g.teams).find(t=>t.name===m.away);
         const predCount = Object.values(allPredictions).filter(p => p[key]).length;
+        const isFinalStage = m.stage === 'final';
+        const isThirdStage = m.stage === 'third';
+        const pBorder = isFinalStage ? 'rgba(245,200,66,0.4)' : isThirdStage ? 'rgba(205,127,50,0.35)' : 'var(--border)';
+        const pBg = isFinalStage ? 'linear-gradient(150deg, rgba(245,200,66,0.08), transparent 60%), var(--card)' : isThirdStage ? 'linear-gradient(150deg, rgba(205,127,50,0.08), transparent 60%), var(--card)' : 'transparent';
 
         const allPredRowsHtml = Object.entries(allPredictions).map(([uid, preds]) => {
           const p = preds[key];
@@ -553,7 +568,9 @@ html += `
           </div>`;
         }).filter(Boolean).join('');
 
-        return `<div style="border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden;">
+        return `<div style="border:1px solid ${pBorder};border-radius:10px;margin-bottom:8px;overflow:hidden;background:${pBg};">
+          ${isFinalStage ? `<div style="text-align:center;padding:5px;font-family:var(--font-display);font-size:11px;letter-spacing:2px;color:var(--gold);background:rgba(245,200,66,0.1);border-bottom:1px solid rgba(245,200,66,0.25);">🏆 FİNAL</div>` : ''}
+          ${isThirdStage ? `<div style="text-align:center;padding:5px;font-family:var(--font-display);font-size:11px;letter-spacing:2px;color:#E0995C;background:rgba(205,127,50,0.1);border-bottom:1px solid rgba(205,127,50,0.25);">🥉 ÜÇÜNCÜLÜK MAÇI</div>` : ''}
           <div style="display:grid;grid-template-columns:1fr auto 1fr auto;align-items:center;gap:12px;padding:12px 16px;">
             <div style="display:flex;align-items:center;gap:6px">
               <span class="team-flag" style="font-family:'Twemoji Country Flags', sans-serif;">${hT?.flag||''}</span>
@@ -3146,7 +3163,10 @@ const GROUP_STAGE_FIXTURES = [
   {group:'QF',date:'12 Tem',home:'Arjantin', away:'İsviçre', venue:'Arrowhead Stadium, KC', datetime:'2026-07-12T01:00:00Z',stage:'qf'},
 
   {group:'SF',date:'14 Tem',home:'Fransa',    away:'İspanya',   venue:'AT&T Stadium, DAL',          datetime:'2026-07-14T19:00:00Z',stage:'sf'},
-  {group:'SF',date:'15 Tem',home:'İngiltere', away:'Arjantin',          venue:'Mercedes-Benz Stadium, ATL', datetime:'2026-07-15T19:00:00Z',stage:'sf'}
+  {group:'SF',date:'15 Tem',home:'İngiltere', away:'Arjantin',          venue:'Mercedes-Benz Stadium, ATL', datetime:'2026-07-15T19:00:00Z',stage:'sf'},
+
+  {group:'3P',date:'18 Tem',home:'Fransa',   away:'İngiltere/Arjantin Kaybedeni', venue:'Hard Rock Stadium, MIA', datetime:'2026-07-18T21:00:00Z',stage:'third'},
+  {group:'F', date:'19 Tem',home:'İspanya',  away:'İngiltere/Arjantin Galibi',    venue:'MetLife Stadium, NJ',    datetime:'2026-07-19T19:00:00Z',stage:'final'}
 ];
 
 const RATING_LABELS = {0:'',1:'Kötü',2:'Ortalama',3:'İyi',4:'Mükemmel',5:'Dünya Sınıfı'};
