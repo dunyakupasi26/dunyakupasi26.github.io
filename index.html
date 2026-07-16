@@ -928,7 +928,7 @@ window.burnTicketAndSave = function(btn) {
     Promise.resolve(saveAllPredictions()).finally(() => {
       if (btn && document.body.contains(btn)) btn.disabled = false;
     });
-  }, 1200);
+  }, 2100);
 };
 
 window.saveAllPredictions = async function() {
