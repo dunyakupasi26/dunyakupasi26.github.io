@@ -251,12 +251,17 @@ async function renderFantasyMainInner(container, isAdmin) {
         const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
         const hidden = i >= 10 && !isMe;
         const topThree = i < 3;
-        const rowBg = isMe ? 'rgba(0,198,122,0.09)' : topThree ? 'rgba(245,200,66,0.04)' : 'transparent';
-        const rowBorder = isMe ? '1px solid rgba(0,198,122,0.25)' : topThree ? '1px solid rgba(245,200,66,0.12)' : '1px solid transparent';
+        const isWinner = i === 0;
+        const rowBg = isMe ? 'rgba(0,198,122,0.09)' : isWinner ? 'rgba(245,200,66,0.08)' : topThree ? 'rgba(245,200,66,0.04)' : 'transparent';
+        const rowBorder = isMe ? '1px solid rgba(0,198,122,0.25)' : isWinner ? '1px solid rgba(245,200,66,0.4)' : topThree ? '1px solid rgba(245,200,66,0.12)' : '1px solid transparent';
+        const meTag = isMe ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">(sen)</span>' : '';
+        const nameHtml = isWinner
+          ? `<span class="winner-crown">👑</span><span class="winner-name-shimmer">${u.displayName}</span><span class="winner-chicken">🐔</span>${meTag}`
+          : `${u.displayName}${meTag}`;
         return `<div class="lb-row" data-index="${i}" style="display:${hidden?'none':'flex'};align-items:center;gap:12px;padding:11px 12px;border-radius:10px;margin-bottom:5px;background:${rowBg};border:${rowBorder}">
           <div style="font-family:var(--font-display);font-size:${medal?'22px':'18px'};color:${topThree?'var(--gold)':'var(--muted)'};width:30px;text-align:center;flex-shrink:0;">${medal||i+1}</div>
           <div style="flex:1;min-width:0;">
-            <div style="font-size:14px;font-weight:500;color:${isMe?'var(--green)':'var(--text)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.displayName}${isMe?' <span style="font-size:11px;color:var(--muted);font-weight:400;">(sen)</span>':''}</div>
+            <div style="font-size:14px;font-weight:${isWinner?700:500};color:${isWinner?'inherit':(isMe?'var(--green)':'var(--text)')};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nameHtml}</div>
             <div style="font-size:11px;color:var(--muted);margin-top:1px;">${u.predictions} tahmin · ${u.exact} tam isabet</div>
           </div>
           <div style="font-family:var(--font-display);font-size:25px;color:${topThree?'var(--gold)':'var(--text)'};flex-shrink:0;">${u.points}</div>
@@ -342,7 +347,7 @@ html += `
               if (!u) return '';
               const isMe = uid === currentUser.uid;
               const correct = championResult && pick.team === championResult;
-              const isEliminated = ['Almanya', 'Fransa', 'İngiltere', 'Brezilya', 'Portekiz'].includes(pick.team);
+              const isEliminated = ['Almanya', 'Fransa', 'İngiltere', 'Brezilya', 'Portekiz', 'Arjantin'].includes(pick.team);
               const teamStyle = isEliminated ? 'text-decoration: line-through; color: #555;' : '';
               const flagOpacity = isEliminated ? 'opacity: 0.4;' : '';
 
@@ -1185,12 +1190,102 @@ function btnStyle() {
   return 'width:100%;background:rgba(0,198,122,0.15);border:1px solid var(--border2);color:var(--green);font-family:var(--font-body);font-size:15px;font-weight:500;padding:12px;border-radius:8px;cursor:pointer;margin-top:4px';
 }
 
+(function(){
+  let canvas, ctx, particles = [], animId = null, textInterval = null, textTimeout = null, running = false;
+  const COLORS = ['#00c67a','#ffd166','#ef476f','#118ab2','#ffffff','#f4a300','#8ecae6'];
+
+  function resizeCanvas(){
+    if(!canvas) return;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+
+  function spawnParticle(recycled){
+    const p = recycled || {};
+    p.x = Math.random() * canvas.width;
+    p.y = -20 - Math.random() * (canvas.height * 0.5);
+    p.w = 6 + Math.random() * 6;
+    p.h = 8 + Math.random() * 8;
+    p.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    p.speedY = 1.4 + Math.random() * 2.4;
+    p.speedX = (Math.random() - 0.5) * 1.4;
+    p.rot = Math.random() * 360;
+    p.rotSpeed = (Math.random() - 0.5) * 8;
+    p.sway = Math.random() * Math.PI * 2;
+    return p;
+  }
+
+  function ensureParticles(){
+    const target = Math.max(70, Math.min(160, Math.round((canvas.width * canvas.height) / 9000)));
+    while(particles.length < target) particles.push(spawnParticle());
+  }
+
+  function tick(){
+    if(!running) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for(const p of particles){
+      p.y += p.speedY;
+      p.sway += 0.03;
+      p.x += p.speedX + Math.sin(p.sway) * 0.6;
+      p.rot += p.rotSpeed;
+      if(p.y > canvas.height + 20 || p.x < -30 || p.x > canvas.width + 30){
+        spawnParticle(p);
+        p.y = -20 - Math.random() * 100;
+      }
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot * Math.PI / 180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    }
+    animId = requestAnimationFrame(tick);
+  }
+
+  function showThanksOverlay(){
+    const el = document.getElementById('fantasy-thanks-overlay');
+    if(!el) return;
+    el.style.opacity = '1';
+    clearTimeout(textTimeout);
+    textTimeout = setTimeout(() => { el.style.opacity = '0'; }, 2200);
+  }
+
+  window.startFantasyCelebration = function(){
+    if(running) return;
+    canvas = document.getElementById('fantasy-confetti-canvas');
+    if(!canvas) return;
+    ctx = canvas.getContext('2d');
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    particles = [];
+    ensureParticles();
+    running = true;
+    tick();
+    textInterval = setInterval(showThanksOverlay, 10000);
+  };
+
+  window.stopFantasyCelebration = function(){
+    running = false;
+    if(animId){ cancelAnimationFrame(animId); animId = null; }
+    if(textInterval){ clearInterval(textInterval); textInterval = null; }
+    if(textTimeout){ clearTimeout(textTimeout); textTimeout = null; }
+    window.removeEventListener('resize', resizeCanvas);
+    if(ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles = [];
+    const el = document.getElementById('fantasy-thanks-overlay');
+    if(el) el.style.opacity = '0';
+  };
+})();
+
 const _origShowSection = window.showSection;
 window.showSection = function(id) {
   _origShowSection(id);
   if (id === 'fantasy') {
     if (currentUser) renderFantasyMain();
     else renderAuthForms();
+    if (window.startFantasyCelebration) window.startFantasyCelebration();
+  } else if (window.stopFantasyCelebration) {
+    window.stopFantasyCelebration();
   }
 };
 
@@ -1272,7 +1367,7 @@ window.showSection = function(id) {
     background-size: contain; 
     background-repeat: no-repeat; 
     background-position: center; 
-    opacity: 0.08; /* Logonun siliklik (filigran) ayarı */
+    opacity: 0.08;
     pointer-events: none; 
 }
   .hero h1 { font-family: var(--font-display); font-size: 48px; letter-spacing: 4px; color: var(--text); margin-bottom: 8px; }
@@ -1319,6 +1414,42 @@ window.showSection = function(id) {
   .player-name-block { display: flex; flex-direction: column; }
   .player-name-block .name { font-size: 14px; font-weight: 500; color: var(--text); }
   .player-name-block .club { font-size: 12px; color: var(--muted); }
+
+  .winner-name-shimmer {
+    background: linear-gradient(90deg, #c9971f 0%, #fff3c4 20%, #f5c842 40%, #fffbe6 55%, #f5c842 75%, #c9971f 100%);
+    background-size: 250% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: winnerShimmer 2.8s linear infinite;
+    text-shadow: 0 0 16px rgba(245,200,66,0.35);
+    padding: 0 1px;
+  }
+  @keyframes winnerShimmer {
+    0% { background-position: 0% center; }
+    100% { background-position: -250% center; }
+  }
+  .winner-crown {
+    display: inline-block;
+    margin-right: 3px;
+    filter: drop-shadow(0 2px 5px rgba(245,200,66,0.55));
+    animation: winnerCrownBob 2s ease-in-out infinite;
+  }
+  @keyframes winnerCrownBob {
+    0%, 100% { transform: translateY(0) rotate(-8deg); }
+    50% { transform: translateY(-3px) rotate(8deg); }
+  }
+  .winner-chicken {
+    display: inline-block;
+    margin-left: 5px;
+    animation: winnerChickenWiggle 1.3s ease-in-out infinite;
+  }
+  @keyframes winnerChickenWiggle {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(-14deg) scale(1.08); }
+    75% { transform: rotate(14deg) scale(1.08); }
+  }
   .star-rating { display: flex; align-items: center; gap: 2px; }
   .star { width: 22px; height: 22px; cursor: pointer; font-size: 18px; transition: color 0.1s, transform 0.1s; display: flex; align-items: center; justify-content: center; color: #2a3a2a; }
   .star.filled { color: var(--gold); }
@@ -1393,13 +1524,11 @@ window.showSection = function(id) {
 
   @media (max-width: 768px) {
 
-    /* ── HEADER & NAV ── */
     .header-inner { padding: 10px 16px; gap: 8px; }
     .header-badge { display: none; }
     .logo { font-size: 18px; }
     #auth-header-area span:first-child { display: none; }
 
-    /* Bottom nav */
     header nav {
       display: none;
     }
@@ -1414,7 +1543,6 @@ window.showSection = function(id) {
 
     main { padding: 12px 12px 80px; }
 
-    /* ── HERO ── */
     .hero { padding: 20px 16px; }
     .hero h1 { font-size: 28px; letter-spacing: 1.5px; }
     .hero p { font-size: 13px; }
@@ -1423,10 +1551,8 @@ window.showSection = function(id) {
     .stat-pill { padding: 10px 12px; }
     .stat-pill .num { font-size: 24px; }
 
-    /* ── ANA SAYFA KARTLARI ── */
     #sec-home > div:nth-child(2) { grid-template-columns: 1fr !important; gap: 10px !important; }
 
-    /* ── GRUPLAR ── */
     .groups-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
     .group-card { padding: 14px; }
     @keyframes kartPopupMobil { 
@@ -1442,7 +1568,6 @@ window.showSection = function(id) {
       transform: translate(-50%, -50%) scale(1.02) !important; 
     }
 
-    /* ── TAKIM DETAY ── */
     .team-detail-header { flex-direction: column; text-align: center; gap: 10px; padding: 16px; }
     .team-avg-rating { margin-left: 0; margin-top: 10px; }
     .player-row { grid-template-columns: 24px 1fr auto !important; gap: 8px; padding: 10px 8px; }
@@ -1451,7 +1576,6 @@ window.showSection = function(id) {
     .star { width: 18px; height: 18px; font-size: 16px; cursor: default; }
     .rating-label { min-width: auto; margin-left: 0; margin-top: 2px; font-size: 10px; }
 
-    /* ── FİKSTÜR ── */
     .fixture-match { grid-template-columns: 1fr 52px 1fr; gap: 6px; padding: 10px 12px; }
     .fixture-team { flex-direction: column; gap: 3px; text-align: center !important; }
     .fixture-team .flag { font-size: 22px; }
@@ -1460,13 +1584,11 @@ window.showSection = function(id) {
     .score-num { font-size: 20px !important; }
     .fixture-meta { grid-column: 1 / 4; text-align: center; padding-top: 8px; border-top: 1px solid var(--border); margin-top: 4px; font-size: 10px; }
 
-    /* ── KARŞILAŞTIRMA ── */
     .compare-grid { grid-template-columns: 1fr; }
     .compare-teams-row { flex-wrap: wrap; gap: 8px; }
     .compare-flag { font-size: 32px; }
     .compare-team-name { font-size: 20px; }
 
-    /* ── İLK 11 SAHA ── */
     .field-scroll-container { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 16px -12px; padding: 0 12px; }
     .field-wrapper { width: 680px !important; margin: 0 auto; }
     .xi-field-card-text { font-size: 9px !important; }
@@ -1474,10 +1596,8 @@ window.showSection = function(id) {
     #xi-panel > div:nth-child(2) > div:nth-child(1) { grid-template-columns: 1fr; gap: 16px; }
     #xi-panel > div:nth-child(2) > div:nth-child(2) { grid-template-columns: 1fr; }
 
-    /* ── FANTASY ── */
     .fantasy-match-card { padding: 12px !important; }
 
-    /* Tahmin input grid'i mobilde tam ortalı */
     .pred-input-grid {
       grid-template-columns: 1fr auto auto auto 1fr !important;
       gap: 6px !important;
@@ -1492,7 +1612,6 @@ window.showSection = function(id) {
       padding: 7px 12px !important;
     }
 
-    /* Geçmiş maçlar grid'i */
     .played-match-grid {
       grid-template-columns: 1fr auto 1fr auto !important;
       gap: 6px !important;
@@ -1500,15 +1619,12 @@ window.showSection = function(id) {
     .played-match-grid .team-flag { font-size: 18px; }
     .played-match-grid span[style*="font-size:13px"] { font-size: 11px !important; }
 
-    /* Puan tablosu */
     .lb-row { padding: 8px 10px !important; gap: 8px !important; }
 
-    /* Modaller */
     #club-edit-modal > div { padding: 16px; min-width: auto; width: 92%; }
     #rankings-modal { padding: 16px 10px; }
   }
 
-  /* ── BOTTOM NAV ── */
   #bottom-nav {
     display: none;
     position: fixed;
@@ -1563,7 +1679,6 @@ window.showSection = function(id) {
   padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;
 }
 
-/* ===== Golden Ticket — Final Match ===== */
 @keyframes ticketShimmer {
   0% { transform: translateX(-120%) skewX(-20deg); }
   55%, 100% { transform: translateX(220%) skewX(-20deg); }
@@ -1630,7 +1745,6 @@ window.showSection = function(id) {
   z-index: 2;
 }
 
-/* ===== Save animation: the ticket "burns" ===== */
 @keyframes ticketBurnShake {
   0%, 100% { transform: translate(0,0) rotate(0deg); }
   10% { transform: translate(-1.5px,1px) rotate(-0.4deg); }
@@ -1817,7 +1931,6 @@ window.showSection = function(id) {
     <div class="sec-header"><div class="sec-title">GRUPLAR</div></div>
     <div class="groups-grid" id="groups-grid"></div>
 
-    <!-- ELİMİNASYON BRACKET -->
     <div style="margin-top:24px;">
       <div style="font-family:var(--font-display);font-size:22px;letter-spacing:2px;color:var(--green);margin-bottom:16px;">⚔️ ELİMİNASYON AŞAMASI</div>
       <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px;">
@@ -1849,6 +1962,12 @@ window.showSection = function(id) {
       <div class="sec-title" style="color:var(--gold)">🏆 FANTASY</div>
     </div>
     <div id="fantasy-main"></div>
+    <canvas id="fantasy-confetti-canvas" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:1500;"></canvas>
+    <div id="fantasy-thanks-overlay" style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:1501;opacity:0;transition:opacity 0.6s ease;">
+      <div style="background:rgba(10,16,12,0.75);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--gold);border-radius:16px;padding:16px 30px;box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+        <span style="font-family:var(--font-body);font-size:19px;font-weight:600;color:#fff;letter-spacing:0.2px;white-space:nowrap;">Oynadığınız için teşekkürler 🏆</span>
+      </div>
+    </div>
   </div>
 </main>
 <script>
@@ -3508,13 +3627,11 @@ function renderGroups(){
     });
   }
 
-  // ÇÖZÜM: Fonksiyonu HTML (onclick) içinden çağırabilmek için window objesine ekliyoruz
   window.temizleVeAc = function(takimAdi) {
     const ov = document.getElementById('grup-overlay');
     if(ov) ov.classList.remove('aktif');
     document.querySelectorAll('.group-card.buyumus').forEach(kart => kart.classList.remove('buyumus'));
     
-    // Asıl takım sayfasını açan fonksiyonu tetikle
     openTeam(takimAdi);
   };
 
@@ -4084,7 +4201,7 @@ function renderBracket() {
     {home:'İngiltere',hS:1,away:'Arjantin',aS:2,w:'Arjantin'},
   ];
 
-  const FINAL = {home:'İspanya',away:'Arjantin',w:null};
+  const FINAL = {home:'İspanya',hS:0,hP:1,away:'Arjantin',aS:0,aP:0,w:'İspanya'};
 
   function score(m) {
     if (m.hS === undefined) return '';
